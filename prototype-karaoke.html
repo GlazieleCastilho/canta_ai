@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marquesa Karaokê</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Manrope:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-deep:#170e2b;
+  --bg-panel:#241542;
+  --bg-panel-2:#2e1b54;
+  --bg-card:#2a1a4d;
+  --gold:#ffc53d;
+  --pink:#ff3d7f;
+  --cyan:#35e8e0;
+  --text:#f5efff;
+  --muted:#b6a8d9;
+  --line:#3c2a66;
+  --font-display:'Bungee', cursive;
+  --font-body:'Manrope', sans-serif;
+  --font-mono:'Space Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255,61,127,0.12), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(53,232,224,0.10), transparent 40%),
+    var(--bg-deep);
+  color:var(--text);
+  font-family:var(--font-body);
+  min-height:100vh;
+}
+::selection{background:var(--pink); color:#fff;}
+button{font-family:var(--font-body); cursor:pointer;}
+input,select{font-family:var(--font-body);}
+
+/* ---------- chasing marquee lights ---------- */
+.chase-lights{
+  height:7px;
+  background-image:radial-gradient(circle, var(--gold) 44%, transparent 50%);
+  background-size:20px 20px;
+  background-position:0 0;
+  animation:chase 0.9s linear infinite;
+  opacity:.9;
+}
+.chase-lights.pink{background-image:radial-gradient(circle, var(--pink) 44%, transparent 50%);}
+.chase-lights.cyan{background-image:radial-gradient(circle, var(--cyan) 44%, transparent 50%);}
+@keyframes chase{to{background-position:20px 0;}}
+
+/* ---------- top nav ---------- */
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 28px 0 28px;
+}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand .mic{
+  width:34px;height:34px; border-radius:50%;
+  background:linear-gradient(145deg,var(--gold),var(--pink));
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  box-shadow:0 0 18px rgba(255,197,61,.5);
+}
+.brand h1{
+  font-family:var(--font-display); font-weight:400;
+  font-size:22px; letter-spacing:.5px; margin:0;
+  color:var(--gold);
+  text-shadow:0 0 14px rgba(255,197,61,.35);
+}
+.brand small{display:block; color:var(--muted); font-size:11px; letter-spacing:2px; text-transform:uppercase;}
+nav.tabs{display:flex; gap:6px; background:var(--bg-panel); padding:5px; border-radius:14px; border:1px solid var(--line);}
+nav.tabs button{
+  background:transparent; border:none; color:var(--muted);
+  padding:9px 18px; border-radius:10px; font-weight:700; font-size:13.5px;
+  letter-spacing:.3px; transition:.15s;
+}
+nav.tabs button.active{background:linear-gradient(135deg,var(--pink),#c73364); color:#fff; box-shadow:0 4px 14px rgba(255,61,127,.35);}
+nav.tabs button:not(.active):hover{color:var(--text); background:var(--bg-panel-2);}
+.queue-pill{
+  display:flex; align-items:center; gap:8px; background:var(--bg-panel);
+  border:1px solid var(--line); padding:8px 14px; border-radius:12px; color:var(--muted); font-size:13px;
+}
+.queue-pill b{color:var(--cyan); font-family:var(--font-mono);}
+
+main{padding:22px 28px 60px 28px; max-width:1400px; margin:0 auto;}
+.view{display:none;}
+.view.active{display:block; animation:fadein .25s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+
+h2.section-title{
+  font-family:var(--font-display); font-weight:400; font-size:19px;
+  color:var(--text); letter-spacing:.4px; margin:0 0 14px 0; display:flex; align-items:center; gap:10px;
+}
+h2.section-title .dot{width:8px;height:8px; border-radius:50%; background:var(--cyan); box-shadow:0 0 10px var(--cyan);}
+
+/* ---------- panels/cards ---------- */
+.grid-2{display:grid; grid-template-columns:1fr 1.3fr; gap:22px;}
+.panel{
+  background:var(--bg-panel); border:1px solid var(--line); border-radius:18px; padding:22px;
+}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px; letter-spacing:.3px; font-weight:700; text-transform:uppercase;}
+.field input[type=text]{
+  width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-deep); color:var(--text); font-size:14px;
+}
+.file-drop{
+  border:1.5px dashed var(--line); border-radius:12px; padding:14px; display:flex; align-items:center; gap:10px;
+  background:var(--bg-deep); font-size:13px; color:var(--muted); transition:.15s;
+}
+.file-drop.filled{border-color:var(--cyan); color:var(--cyan);}
+.file-drop input{display:none;}
+.file-drop .pick-btn{
+  background:var(--bg-panel-2); border:1px solid var(--line); color:var(--text); padding:7px 12px;
+  border-radius:8px; font-size:12px; font-weight:700; white-space:nowrap;
+}
+.icon-badge{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;}
+.icon-badge.mp3{background:rgba(255,61,127,.18); color:var(--pink);}
+.icon-badge.mp4{background:rgba(53,232,224,.18); color:var(--cyan);}
+.icon-badge.lrc{background:rgba(255,197,61,.18); color:var(--gold);}
+
+.btn{
+  border:none; border-radius:10px; padding:11px 18px; font-weight:800; font-size:13.5px; letter-spacing:.3px;
+}
+.btn-primary{background:linear-gradient(135deg,var(--gold),#ff9f43); color:#241000; box-shadow:0 6px 16px rgba(255,197,61,.28);}
+.btn-primary:hover{filter:brightness(1.06);}
+.btn-primary:disabled{opacity:.4; cursor:not-allowed;}
+.btn-ghost{background:var(--bg-panel-2); color:var(--text); border:1px solid var(--line);}
+.btn-danger{background:transparent; color:#ff6b8f; border:1px solid rgba(255,107,143,.35);}
+.btn-cyan{background:linear-gradient(135deg,var(--cyan),#1aa6a0); color:#00201f;}
+.btn-block{width:100%;}
+
+/* library list */
+.song-list{display:flex; flex-direction:column; gap:10px; max-height:560px; overflow:auto; padding-right:4px;}
+.song-card{
+  background:var(--bg-card); border:1px solid var(--line); border-radius:14px; padding:13px 15px;
+  display:flex; align-items:center; gap:12px;
+}
+.song-thumb{
+  width:46px;height:46px;border-radius:10px; background:linear-gradient(135deg,var(--bg-panel-2),var(--bg-deep));
+  display:flex;align-items:center;justify-content:center; font-size:18px; flex-shrink:0; border:1px solid var(--line);
+}
+.song-meta{flex:1; min-width:0;}
+.song-meta .t{font-weight:800; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.song-meta .a{font-size:12px; color:var(--muted);}
+.tag-row{display:flex; gap:5px; margin-top:4px;}
+.tag{font-size:9.5px; padding:2px 7px; border-radius:20px; font-weight:800; letter-spacing:.4px;}
+.tag.ok{background:rgba(53,232,224,.15); color:var(--cyan);}
+.tag.warn{background:rgba(255,197,61,.15); color:var(--gold);}
+.empty-state{
+  text-align:center; padding:50px 20px; color:var(--muted); border:1.5px dashed var(--line); border-radius:16px;
+}
+.empty-state .big{font-size:38px; margin-bottom:8px;}
+
+/* ---------- queue tab ---------- */
+.queue-form{display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; margin-bottom:18px;}
+select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--bg-deep); color:var(--text); font-size:14px;}
+.queue-list{display:flex; flex-direction:column; gap:10px;}
+.queue-item{
+  display:flex; align-items:center; gap:14px; background:var(--bg-card); border:1px solid var(--line);
+  border-radius:14px; padding:12px 16px;
+}
+.queue-pos{
+  font-family:var(--font-mono); font-weight:700; font-size:15px; color:var(--bg-deep);
+  background:var(--gold); width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.queue-info{flex:1; min-width:0;}
+.queue-info .n{font-weight:800; font-size:14.5px;}
+.queue-info .s{font-size:12px; color:var(--muted);}
+.queue-actions{display:flex; gap:8px;}
+.queue-actions button{padding:8px 12px; font-size:12px;}
+
+/* ---------- stage ---------- */
+.stage-wrap{position:relative; border-radius:22px; overflow:hidden; border:1px solid var(--line); min-height:640px; background:#000;}
+.stage-video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; filter:brightness(.55);}
+.stage-overlay-grad{position:absolute; inset:0; background:linear-gradient(180deg, rgba(23,14,43,.55) 0%, rgba(23,14,43,.15) 35%, rgba(23,14,43,.85) 100%);}
+.stage-content{position:relative; z-index:2; display:flex; flex-direction:column; height:640px; padding:22px;}
+
+.now-singing{
+  align-self:center; margin-top:6px; background:rgba(23,14,43,.55); backdrop-filter:blur(6px);
+  border:1px solid rgba(255,197,61,.35); border-radius:16px; padding:10px 22px; text-align:center;
+}
+.now-singing .song-title{font-family:var(--font-display); font-size:20px; color:var(--gold); font-weight:400;}
+.now-singing .singer{font-size:13px; color:var(--muted); margin-top:2px;}
+
+.lyrics-zone{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; padding:0 40px;}
+.lyric-prev{font-size:16px; color:rgba(245,239,255,.35); font-weight:700;}
+.lyric-current{
+  font-family:var(--font-display); font-weight:400; font-size:clamp(24px,4vw,44px);
+  color:#fff; text-shadow:0 0 22px rgba(255,61,127,.55), 0 2px 6px rgba(0,0,0,.6);
+  transition:.15s;
+}
+.lyric-next{font-size:16px; color:rgba(245,239,255,.5); font-weight:700;}
+
+.hud{display:flex; align-items:flex-end; justify-content:space-between; gap:20px;}
+.score-box{
+  background:rgba(23,14,43,.6); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:16px;
+  padding:14px 20px; min-width:180px;
+}
+.score-box .label{font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-weight:800;}
+.score-box .val{font-family:var(--font-mono); font-size:34px; color:var(--cyan); font-weight:700; line-height:1.1;}
+.streak{font-size:12px; color:var(--gold); font-weight:800; margin-top:2px;}
+.mic-meter{width:100%; height:6px; background:var(--bg-deep); border-radius:6px; overflow:hidden; margin-top:8px; border:1px solid var(--line);}
+.mic-meter i{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--cyan),var(--pink)); transition:width .08s linear;}
+
+.stage-controls{display:flex; gap:10px;}
+.stage-controls button{padding:12px 18px; font-size:13px;}
+
+.empty-stage{display:flex; flex-direction:column; align-items:center; justify-content:center; height:640px; color:var(--muted); gap:14px; text-align:center; padding:20px;}
+.empty-stage .big{font-size:46px;}
+.quick-pick{display:flex; gap:10px; margin-top:8px; flex-wrap:wrap; justify-content:center;}
+
+/* motivational toast */
+.toast-msg{
+  position:absolute; z-index:5; left:50%; top:18%; transform:translate(-50%,-10px) scale(.85); opacity:0;
+  background:linear-gradient(135deg,var(--pink),#c73364); padding:10px 22px; border-radius:40px; font-weight:800;
+  font-size:15px; box-shadow:0 8px 24px rgba(255,61,127,.4); pointer-events:none; transition:.35s cubic-bezier(.2,1.4,.4,1);
+}
+.toast-msg.show{opacity:1; transform:translate(-50%,0) scale(1);}
+
+/* queue alert - top corner */
+.queue-alert{
+  position:absolute; top:16px; right:16px; z-index:6; width:230px;
+  background:rgba(23,14,43,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,197,61,.35);
+  border-radius:14px; padding:12px 14px; transition:.3s;
+}
+.queue-alert.flash{animation:flashpop .6s ease;}
+@keyframes flashpop{0%{box-shadow:0 0 0 0 rgba(255,197,61,.6);}70%{box-shadow:0 0 0 14px rgba(255,197,61,0);}}
+.queue-alert h4{margin:0 0 8px 0; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); display:flex; align-items:center; gap:6px;}
+.queue-alert ol{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:6px;}
+.queue-alert li{font-size:12.5px; color:var(--text);}
+.queue-alert li span{display:block; font-size:10.5px; color:var(--muted);}
+.queue-alert .empty{font-size:12px; color:var(--muted);}
+
+/* final score modal */
+.modal-bg{position:fixed; inset:0; background:rgba(10,5,20,.75); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; z-index:50;}
+.modal{
+  background:var(--bg-panel); border:1px solid var(--line); border-radius:22px; padding:36px; width:380px; text-align:center;
+}
+.modal .grade{font-family:var(--font-display); font-size:46px; color:var(--gold); text-shadow:0 0 20px rgba(255,197,61,.4);}
+.modal .num{font-family:var(--font-mono); font-size:22px; color:var(--cyan); margin-top:6px;}
+.modal p{color:var(--muted); font-size:13.5px; margin:14px 0 22px 0;}
+
+.mic-permission{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; height:640px; text-align:center; padding:30px;
+}
+@media (max-width:900px){
+  .grid-2{grid-template-columns:1fr;}
+  .topbar{flex-direction:column; gap:12px; align-items:flex-start;}
+  nav.tabs{width:100%; overflow:auto;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mic">🎤</div>
+    <div>
+      <h1>Marquesa Karaokê</h1>
+      <small>Noite de estrelas</small>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-view="admin">Painel</button>
+    <button class="tab-btn" data-view="queue">Fila de espera</button>
+    <button class="tab-btn" data-view="stage">Palco</button>
+  </nav>
+  <div class="queue-pill">Na fila <b id="pillCount">0</b></div>
+</div>
+
+<main>
+
+  <!-- ================= ADMIN ================= -->
+  <section id="view-admin" class="view active">
+    <div class="grid-2">
+      <div class="panel">
+        <h2 class="section-title"><span class="dot"></span>Adicionar música</h2>
+
+        <div class="field">
+          <label>Título da música</label>
+          <input type="text" id="songTitle" placeholder="Ex: Evidências">
+        </div>
+        <div class="field">
+          <label>Artista</label>
+          <input type="text" id="songArtist" placeholder="Ex: Chitãozinho & Xororó">
+        </div>
+
+        <div class="field">
+          <label>Áudio (MP3)</label>
+          <label class="file-drop" id="dropMp3">
+            <div class="icon-badge mp3">♪</div>
+            <span id="labelMp3">Clique para escolher o arquivo .mp3</span>
+            <input type="file" id="inputMp3" accept="audio/mpeg,audio/mp3">
+            <span class="pick-btn">Escolher</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Vídeo de fundo (MP4)</label>
+          <label class="file-drop" id="dropMp4">
+            <div class="icon-badge mp4">▶</div>
+            <span id="labelMp4">Clique para escolher o arquivo .mp4</span>
+            <input type="file" id="inputMp4" accept="video/mp4">
+            <span class="pick-btn">Escolher</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label>Letra sincronizada (LRC)</label>
+          <label class="file-drop" id="dropLrc">
+            <div class="icon-badge lrc">✎</div>
+            <span id="labelLrc">Clique para escolher o arquivo .lrc</span>
+            <input type="file" id="inputLrc" accept=".lrc,.txt">
+            <span class="pick-btn">Escolher</span>
+          </label>
+        </div>
+
+        <button class="btn btn-primary btn-block" id="btnAddSong" disabled>Adicionar à biblioteca</button>
+        <p style="font-size:11.5px;color:var(--muted); margin-top:10px;">
+          Os arquivos ficam carregados na memória deste navegador durante o evento — não é preciso servidor.
+        </p>
+      </div>
+
+      <div class="panel">
+        <h2 class="section-title"><span class="dot"></span>Biblioteca de músicas</h2>
+        <div id="songList" class="song-list">
+          <div class="empty-state">
+            <div class="big">🎶</div>
+            Nenhuma música cadastrada ainda.<br>Adicione a primeira ao lado.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= QUEUE ================= -->
+  <section id="view-queue" class="view">
+    <div class="panel">
+      <h2 class="section-title"><span class="dot"></span>Fila de espera</h2>
+
+      <div class="queue-form">
+        <div class="field" style="margin:0;">
+          <label>Nome do cantor(a)</label>
+          <input type="text" id="singerName" placeholder="Ex: Marina">
+        </div>
+        <div class="field" style="margin:0;">
+          <label>Música escolhida</label>
+          <select id="singerSong"><option value="">Cadastre uma música primeiro</option></select>
+        </div>
+        <button class="btn btn-primary" id="btnAddQueue">Entrar na fila</button>
+      </div>
+
+      <div id="queueList" class="queue-list">
+        <div class="empty-state"><div class="big">🙋</div>A fila está vazia.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STAGE ================= -->
+  <section id="view-stage" class="view">
+    <div class="stage-wrap" id="stageWrap">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ======================= STATE ======================= */
+const state = {
+  songs: [],
+  queue: [],
+  current: null,      // {singer, song}
+  micReady: false,
+  performing: false,
+  audioCtx: null, analyser: null, micSource: null, micBuf: null,
+  lineScores: [], streak: 0, bestStreak: 0, curLineIdx: -1, lineSamples: [],
+  syncTimer: null, pitchTimer: null,
+};
+let songIdSeq = 1, queueIdSeq = 1;
+
+/* ======================= UTIL ======================= */
+function fmtTime(t){ return t; }
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+
+function parseLRC(text){
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  const re = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+  for(const raw of lines){
+    const matches = [...raw.matchAll(re)];
+    if(!matches.length) continue;
+    const content = raw.replace(re,'').trim();
+    for(const m of matches){
+      const min = parseInt(m[1],10), sec = parseInt(m[2],10);
+      let ms = m[3] ? parseInt(m[3].padEnd(3,'0'),10) : 0;
+      const time = min*60 + sec + ms/1000;
+      if(content) out.push({time, text: content});
+    }
+  }
+  out.sort((a,b)=>a.time-b.time);
+  return out;
+}
+
+/* ======================= NAV ======================= */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='stage') renderStage();
+  });
+});
+
+/* ======================= FILE PICKERS ======================= */
+function wireDrop(dropId, inputId, labelId, onLoaded){
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  drop.addEventListener('click', (e)=>{ if(e.target!==input) input.click(); });
+  input.addEventListener('change', ()=>{
+    if(!input.files[0]) return;
+    document.getElementById(labelId).textContent = input.files[0].name;
+    drop.classList.add('filled');
+    onLoaded(input.files[0]);
+    checkAddSongEnabled();
+  });
+}
+let pendingLrcText = null;
+wireDrop('dropMp3','inputMp3','labelMp3', f=>{
+  if(!document.getElementById('songTitle').value){
+    document.getElementById('songTitle').value = f.name.replace(/\.[^/.]+$/,'');
+  }
+});
+wireDrop('dropMp4','inputMp4','labelMp4', ()=>{});
+wireDrop('dropLrc','inputLrc','labelLrc', f=>{
+  const reader = new FileReader();
+  reader.onload = ()=>{ pendingLrcText = reader.result; checkAddSongEnabled(); };
+  reader.readAsText(f);
+});
+
+function checkAddSongEnabled(){
+  const has = document.getElementById('inputMp3').files[0] &&
+              document.getElementById('inputMp4').files[0] &&
+              pendingLrcText !== null;
+  document.getElementById('btnAddSong').disabled = !has;
+}
+
+document.getElementById('btnAddSong').addEventListener('click', ()=>{
+  const mp3File = document.getElementById('inputMp3').files[0];
+  const mp4File = document.getElementById('inputMp4').files[0];
+  const title = document.getElementById('songTitle').value.trim() || 'Sem título';
+  const artist = document.getElementById('songArtist').value.trim() || 'Artista desconhecido';
+  const lrc = parseLRC(pendingLrcText || '');
+
+  const song = {
+    id: songIdSeq++, title, artist,
+    mp3Url: URL.createObjectURL(mp3File),
+    mp4Url: URL.createObjectURL(mp4File),
+    lrc
+  };
+  state.songs.push(song);
+  renderSongList();
+  renderSongSelect();
+
+  // reset form
+  ['inputMp3','inputMp4','inputLrc'].forEach(id=>document.getElementById(id).value='');
+  ['dropMp3','dropMp4','dropLrc'].forEach(id=>document.getElementById(id).classList.remove('filled'));
+  document.getElementById('labelMp3').textContent = 'Clique para escolher o arquivo .mp3';
+  document.getElementById('labelMp4').textContent = 'Clique para escolher o arquivo .mp4';
+  document.getElementById('labelLrc').textContent = 'Clique para escolher o arquivo .lrc';
+  document.getElementById('songTitle').value=''; document.getElementById('songArtist').value='';
+  pendingLrcText = null;
+  document.getElementById('btnAddSong').disabled = true;
+});
+
+function renderSongList(){
+  const wrap = document.getElementById('songList');
+  if(!state.songs.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="big">🎶</div>Nenhuma música cadastrada ainda.<br>Adicione a primeira ao lado.</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  state.songs.forEach(s=>{
+    const card = el(`
+      <div class="song-card">
+        <div class="song-thumb">🎬</div>
+        <div class="song-meta">
+          <div class="t">${escapeHtml(s.title)}</div>
+          <div class="a">${escapeHtml(s.artist)}</div>
+          <div class="tag-row">
+            <span class="tag ${s.lrc.length? 'ok':'warn'}">${s.lrc.length} linhas LRC</span>
+          </div>
+        </div>
+        <button class="btn btn-danger" data-id="${s.id}">Remover</button>
+      </div>
+    `);
+    card.querySelector('button').addEventListener('click', ()=>{
+      state.songs = state.songs.filter(x=>x.id!==s.id);
+      renderSongList(); renderSongSelect();
+    });
+    wrap.appendChild(card);
+  });
+}
+function escapeHtml(str){ return str.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderSongSelect(){
+  const sel = document.getElementById('singerSong');
+  if(!state.songs.length){
+    sel.innerHTML = '<option value="">Cadastre uma música primeiro</option>';
+    return;
+  }
+  sel.innerHTML = state.songs.map(s=>`<option value="${s.id}">${escapeHtml(s.title)} — ${escapeHtml(s.artist)}</option>`).join('');
+}
+
+/* ======================= QUEUE ======================= */
+document.getElementById('btnAddQueue').addEventListener('click', ()=>{
+  const name = document.getElementById('singerName').value.trim();
+  const songId = parseInt(document.getElementById('singerSong').value,10);
+  if(!name || !songId) return;
+  state.queue.push({id: queueIdSeq++, name, songId});
+  document.getElementById('singerName').value='';
+  renderQueue(true);
+});
+
+function renderQueue(flash){
+  document.getElementById('pillCount').textContent = state.queue.length;
+  const wrap = document.getElementById('queueList');
+  if(!state.queue.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="big">🙋</div>A fila está vazia.</div>';
+  } else {
+    wrap.innerHTML = '';
+    state.queue.forEach((q,i)=>{
+      const song = state.songs.find(s=>s.id===q.songId);
+      const item = el(`
+        <div class="queue-item">
+          <div class="queue-pos">${i+1}</div>
+          <div class="queue-info">
+            <div class="n">${escapeHtml(q.name)}</div>
+            <div class="s">${song? escapeHtml(song.title)+' — '+escapeHtml(song.artist) : 'música removida'}</div>
+          </div>
+          <div class="queue-actions">
+            <button class="btn btn-cyan" data-act="call">Chamar ao palco</button>
+            <button class="btn btn-danger" data-act="del">Remover</button>
+          </div>
+        </div>
+      `);
+      item.querySelector('[data-act=call]').addEventListener('click', ()=>callToStage(q.id));
+      item.querySelector('[data-act=del]').addEventListener('click', ()=>{
+        state.queue = state.queue.filter(x=>x.id!==q.id);
+        renderQueue(true);
+      });
+      wrap.appendChild(item);
+    });
+  }
+  renderQueueAlert(flash);
+}
+
+function callToStage(queueId){
+  const q = state.queue.find(x=>x.id===queueId);
+  if(!q) return;
+  const song = state.songs.find(s=>s.id===q.songId);
+  if(!song) return;
+  state.queue = state.queue.filter(x=>x.id!==queueId);
+  startPerformance(q.name, song);
+  document.querySelector('.tab-btn[data-view="stage"]').click();
+}
+
+/* ======================= STAGE ======================= */
+function renderStage(){
+  const wrap = document.getElementById('stageWrap');
+  if(!state.current){
+    wrap.innerHTML = emptyStageHTML();
+    wireEmptyStage();
+    return;
+  }
+  wrap.innerHTML = stageHTML();
+  wireStage();
+}
+
+function emptyStageHTML(){
+  const options = state.songs.map(s=>`<option value="${s.id}">${escapeHtml(s.title)} — ${escapeHtml(s.artist)}</option>`).join('');
+  return `
+    <div class="empty-stage">
+      <div class="big">🎙️</div>
+      <div>
+        <h2 class="section-title" style="justify-content:center;">Nenhum cantor no palco</h2>
+        <p style="color:var(--muted); font-size:13.5px;">Chame alguém da fila, ou coloque uma pessoa direto no palco:</p>
+      </div>
+      <div class="quick-pick">
+        <input type="text" id="quickName" placeholder="Nome do cantor(a)" style="padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg-deep);color:var(--text);">
+        <select id="quickSong">${options || '<option value="">Cadastre uma música</option>'}</select>
+        <button class="btn btn-primary" id="quickStart">Colocar no palco</button>
+      </div>
+    </div>
+  `;
+}
+function wireEmptyStage(){
+  const btn = document.getElementById('quickStart');
+  if(!btn) return;
+  btn.addEventListener('click', ()=>{
+    const name = document.getElementById('quickName').value.trim() || 'Cantor(a) misterioso(a)';
+    const songId = parseInt(document.getElementById('quickSong').value,10);
+    const song = state.songs.find(s=>s.id===songId);
+    if(!song){ alert('Cadastre e escolha uma música primeiro.'); return; }
+    startPerformance(name, song);
+    renderStage();
+  });
+}
+
+function stageHTML(){
+  const {singer, song} = state.current;
+  return `
+    <video class="stage-video" id="stageVideo" src="${song.mp4Url}" muted loop playsinline></video>
+    <div class="stage-overlay-grad"></div>
+    <audio id="stageAudio" src="${song.mp3Url}"></audio>
+    <div class="toast-msg" id="toastMsg"></div>
+    <div class="queue-alert" id="queueAlert"></div>
+
+    <div class="stage-content">
+      <div class="now-singing">
+        <div class="song-title">${escapeHtml(song.title)}</div>
+        <div class="singer">🎤 ${escapeHtml(singer)} está cantando · ${escapeHtml(song.artist)}</div>
+      </div>
+
+      <div class="lyrics-zone" id="lyricsZone">
+        <div class="lyric-prev" id="lyricPrev">&nbsp;</div>
+        <div class="lyric-current" id="lyricCurrent">Prepare-se...</div>
+        <div class="lyric-next" id="lyricNext">&nbsp;</div>
+      </div>
+
+      <div class="hud">
+        <div class="score-box">
+          <div class="label">Pontuação</div>
+          <div class="val" id="scoreVal">0</div>
+          <div class="streak" id="streakVal">Sequência: 0</div>
+          <div class="mic-meter"><i id="micBar"></i></div>
+        </div>
+        <div class="stage-controls" id="stageControlsWrap">
+          <button class="btn btn-ghost" id="btnBack">← Voltar</button>
+          <button class="btn btn-primary" id="btnMicStart">🎙️ Pedir microfone e iniciar</button>
+          <button class="btn btn-danger" id="btnEnd" style="display:none;">Encerrar performance</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireStage(){
+  document.getElementById('btnBack').addEventListener('click', ()=>{
+    stopPerformance(false);
+    state.current = null;
+    renderStage();
+  });
+  document.getElementById('btnMicStart').addEventListener('click', requestMicAndPlay);
+  document.getElementById('btnEnd').addEventListener('click', ()=>endPerformance());
+  renderQueueAlert(false);
+}
+
+/* --------- queue alert widget (top corner) --------- */
+function renderQueueAlert(flash){
+  const box = document.getElementById('queueAlert');
+  if(!box) return;
+  const upcoming = state.queue.slice(0,5);
+  box.innerHTML = `
+    <h4>🔔 Próximos na fila</h4>
+    ${upcoming.length ? `<ol>${upcoming.map(q=>{
+      const song = state.songs.find(s=>s.id===q.songId);
+      return `<li>${escapeHtml(q.name)}<span>${song? escapeHtml(song.title):''}</span></li>`;
+    }).join('')}</ol>` : `<div class="empty">Ninguém na fila ainda.</div>`}
+  `;
+  if(flash){
+    box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
+  }
+}
+
+/* ======================= PERFORMANCE / SYNC ======================= */
+function startPerformance(singer, song){
+  state.current = {singer, song};
+}
+
+function requestMicAndPlay(){
+  navigator.mediaDevices.getUserMedia({audio:true, video:false}).then(stream=>{
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    state.analyser = state.audioCtx.createAnalyser();
+    state.analyser.fftSize = 1024;
+    state.micBuf = new Float32Array(state.analyser.fftSize);
+    state.micSource = state.audioCtx.createMediaStreamSource(stream);
+    state.micSource.connect(state.analyser);
+    state.micReady = true;
+    beginPlayback();
+  }).catch(()=>{
+    alert('Não foi possível acessar o microfone. A performance vai rodar sem pontuação.');
+    beginPlayback();
+  });
+}
+
+function beginPlayback(){
+  const audio = document.getElementById('stageAudio');
+  const video = document.getElementById('stageVideo');
+  audio.currentTime = 0; video.currentTime = 0;
+  audio.play(); video.play();
+  state.performing = true;
+  state.lineScores = []; state.streak = 0; state.bestStreak = 0; state.curLineIdx = -1; state.lineSamples = [];
+  document.getElementById('btnMicStart').style.display='none';
+  document.getElementById('btnEnd').style.display='inline-block';
+
+  // keep video roughly in sync with audio (the timing master)
+  state.syncTimer = setInterval(()=>{
+    if(Math.abs(video.currentTime - audio.currentTime) > 0.35){
+      video.currentTime = audio.currentTime;
+    }
+    updateLyrics(audio.currentTime);
+    if(audio.ended){ endPerformance(); }
+  }, 120);
+
+  if(state.micReady){
+    state.pitchTimer = setInterval(sampleMic, 60);
+  }
+}
+
+function updateLyrics(t){
+  const lrc = state.current.song.lrc;
+  if(!lrc.length) return;
+  let idx = -1;
+  for(let i=0;i<lrc.length;i++){ if(lrc[i].time <= t) idx = i; else break; }
+  if(idx !== state.curLineIdx){
+    // score the line that just finished
+    if(state.curLineIdx >= 0) scoreLine(state.curLineIdx);
+    state.curLineIdx = idx;
+    state.lineSamples = [];
+    document.getElementById('lyricPrev').textContent = idx>0 ? lrc[idx-1].text : '\u00A0';
+    document.getElementById('lyricCurrent').textContent = idx>=0 ? lrc[idx].text : 'Prepare-se...';
+    document.getElementById('lyricNext').textContent = idx>=0 && idx+1<lrc.length ? lrc[idx+1].text : '\u00A0';
+  }
+}
+
+/* --------- mic pitch/volume sampling --------- */
+function autoCorrelate(buf, sampleRate){
+  const SIZE = buf.length;
+  let rms = 0;
+  for(let i=0;i<SIZE;i++){ rms += buf[i]*buf[i]; }
+  rms = Math.sqrt(rms/SIZE);
+  if(rms < 0.012) return {pitch:-1, rms};
+  let r1=0, r2=SIZE-1;
+  const thres = 0.2;
+  for(let i=0;i<SIZE/2;i++){ if(Math.abs(buf[i]) < thres){ r1=i; break; } }
+  for(let i=1;i<SIZE/2;i++){ if(Math.abs(buf[SIZE-i]) < thres){ r2=SIZE-i; break; } }
+  const trimmed = buf.slice(r1, r2);
+  const n = trimmed.length;
+  if(n < 8) return {pitch:-1, rms};
+  const c = new Array(n).fill(0);
+  for(let i=0;i<n;i++){ for(let j=0;j<n-i;j++){ c[i] += trimmed[j]*trimmed[j+i]; } }
+  let d=0; while(d < n-1 && c[d] > c[d+1]) d++;
+  let maxVal=-1, maxPos=-1;
+  for(let i=d;i<n;i++){ if(c[i] > maxVal){ maxVal=c[i]; maxPos=i; } }
+  let T0 = maxPos;
+  if(T0<=0) return {pitch:-1, rms};
+  const x1=c[T0-1]||0, x2=c[T0]||0, x3=c[T0+1]||0;
+  const a=(x1+x3-2*x2)/2, b=(x3-x1)/2;
+  if(a) T0 = T0 - b/(2*a);
+  const pitch = sampleRate / T0;
+  return {pitch: (pitch>60 && pitch<1200) ? pitch : -1, rms};
+}
+
+function sampleMic(){
+  if(!state.analyser) return;
+  state.analyser.getFloatTimeDomainData(state.micBuf);
+  const {pitch, rms} = autoCorrelate(state.micBuf, state.audioCtx.sampleRate);
+  const vol = Math.min(1, rms*9);
+  document.getElementById('micBar').style.width = (vol*100).toFixed(0)+'%';
+  state.lineSamples.push({pitch, rms});
+}
+
+function scoreLine(idx){
+  const samples = state.lineSamples;
+  if(!samples.length) return;
+  const voiced = samples.filter(s=>s.pitch>0);
+  const activity = voiced.length / samples.length;
+  let stability = 0;
+  if(voiced.length > 2){
+    const cents = voiced.map(s=>1200*Math.log2(s.pitch/110));
+    const mean = cents.reduce((a,b)=>a+b,0)/cents.length;
+    const variance = cents.reduce((a,b)=>a+(b-mean)*(b-mean),0)/cents.length;
+    stability = Math.max(0, 1 - Math.min(1, Math.sqrt(variance)/500));
+  }
+  let lineScore = Math.round(activity*70 + stability*30);
+  if(activity < 0.15) lineScore = Math.round(lineScore*0.4);
+  state.lineScores.push(lineScore);
+
+  if(lineScore >= 65){
+    state.streak++; state.bestStreak = Math.max(state.bestStreak, state.streak);
+  } else {
+    state.streak = 0;
+  }
+
+  const total = Math.round(state.lineScores.reduce((a,b)=>a+b,0)/state.lineScores.length);
+  const scoreEl = document.getElementById('scoreVal');
+  if(scoreEl) scoreEl.textContent = total;
+  const streakEl = document.getElementById('streakVal');
+  if(streakEl) streakEl.textContent = 'Sequência: '+state.streak;
+
+  maybeShowToast(lineScore);
+}
+
+const MSGS_HIGH = ['Uau, voz de show! 🌟','Mandou muito bem! 🎤','Isso aí, arrasando! 🔥','Plateia em pé! 👏'];
+const MSGS_MID  = ['Boa! Continue assim! 🎶','Você está no tom! 🎵','Show de bola! ✨'];
+const MSGS_LOW  = ['Solta a voz! 💪','Capricha na próxima linha! 🎙️','Vai que é sua hora de brilhar! ⭐'];
+const MSGS_STREAK = ['Combo em sequência! 🔥🔥','Sequência imparável! 🚀'];
+
+function maybeShowToast(lineScore){
+  let msg = null;
+  if(state.streak > 0 && state.streak % 4 === 0){
+    msg = MSGS_STREAK[Math.floor(Math.random()*MSGS_STREAK.length)];
+  } else if(lineScore >= 85){
+    msg = MSGS_HIGH[Math.floor(Math.random()*MSGS_HIGH.length)];
+  } else if(lineScore >= 60 && Math.random() < 0.5){
+    msg = MSGS_MID[Math.floor(Math.random()*MSGS_MID.length)];
+  } else if(lineScore < 40 && Math.random() < 0.35){
+    msg = MSGS_LOW[Math.floor(Math.random()*MSGS_LOW.length)];
+  }
+  if(!msg) return;
+  const toast = document.getElementById('toastMsg');
+  if(!toast) return;
+  toast.textContent = msg;
+  toast.classList.remove('show'); void toast.offsetWidth; toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>toast.classList.remove('show'), 1600);
+}
+
+function stopPerformance(){
+  state.performing = false;
+  clearInterval(state.syncTimer); clearInterval(state.pitchTimer);
+  const audio = document.getElementById('stageAudio');
+  const video = document.getElementById('stageVideo');
+  if(audio) audio.pause();
+  if(video) video.pause();
+  if(state.micSource){ try{ state.micSource.mediaStream.getTracks().forEach(t=>t.stop()); }catch(e){} }
+  if(state.audioCtx){ try{ state.audioCtx.close(); }catch(e){} }
+  state.audioCtx=null; state.analyser=null; state.micSource=null; state.micReady=false;
+}
+
+function endPerformance(){
+  if(state.curLineIdx >= 0) scoreLine(state.curLineIdx);
+  stopPerformance();
+  showFinalModal();
+}
+
+function showFinalModal(){
+  const scores = state.lineScores;
+  const total = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+  let grade='👏', label='Valeu a participação!';
+  if(total>=90){ grade='🌟'; label='Estrela do Karaokê'; }
+  else if(total>=75){ grade='🎤'; label='Voz Afinada'; }
+  else if(total>=60){ grade='🎶'; label='Muito Bem!'; }
+
+  const bg = el(`
+    <div class="modal-bg">
+      <div class="modal">
+        <div class="grade">${grade}</div>
+        <div class="num">${total} / 100</div>
+        <p><b>${label}</b><br>${escapeHtml(state.current.singer)} cantou "${escapeHtml(state.current.song.title)}"<br>Maior sequência: ${state.bestStreak} linhas</p>
+        <button class="btn btn-primary btn-block" id="modalClose">Chamar o próximo cantor</button>
+      </div>
+    </div>
+  `);
+  document.body.appendChild(bg);
+  bg.querySelector('#modalClose').addEventListener('click', ()=>{
+    bg.remove();
+    state.current = null;
+    renderStage();
+  });
+}
+
+/* ======================= INIT ======================= */
+renderSongList();
+renderSongSelect();
+renderQueue(false);
+renderStage();
+</script>
+</body>
+</html>
