@@ -17,3 +17,6 @@ next-env.d.ts
 
 # vercel
 .vercel
+
+# cópia local duplicada do projeto (não versionar)
+/canta_ai/

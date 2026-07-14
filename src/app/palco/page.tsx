@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { parseLRC, type LrcLine } from "@/karaoke/lrc";
@@ -263,6 +264,9 @@ export default function PalcoPage() {
       <div className="chase-lights" />
       <main style={{ paddingTop: 16 }}>
         <div className="stage-wrap">
+          <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
+            ←
+          </Link>
           {entry && entry.songs ? (
             <>
               {videoPath && (

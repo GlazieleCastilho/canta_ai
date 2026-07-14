@@ -150,7 +150,11 @@ function Panel() {
               </div>
             )}
             <p style={{ color: "var(--muted)", fontSize: 12.5, textAlign: "center" }}>
-              Tela do evento: abra <b style={{ color: "var(--cyan)" }}>/palco</b> na TV ou no computador do telão.
+              Tela do evento: abra{" "}
+              <a href="/palco" target="_blank" rel="noopener" style={{ color: "var(--cyan)", fontWeight: 700 }}>
+                /palco
+              </a>{" "}
+              na TV ou no computador do telão.
             </p>
           </div>
         </div>
