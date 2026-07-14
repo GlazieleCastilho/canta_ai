@@ -13,6 +13,8 @@ export default function EntrarPage() {
   const [name, setName] = useState("");
   const [songId, setSongId] = useState("");
   const [filter, setFilter] = useState("");
+  const [styleFilter, setStyleFilter] = useState<string | null>(null);
+  const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState<Joined | null>(null);
@@ -36,14 +38,38 @@ export default function EntrarPage() {
     return () => clearInterval(t);
   }, [loadQueue]);
 
+  // remove acentos para busca e filtro por letra inicial (ex: "É" conta como "E")
+  const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+
+  const styles = useMemo(
+    () => (songs ? [...new Set(songs.map((s) => s.style))].sort() : []),
+    [songs]
+  );
+  const letters = useMemo(() => {
+    if (!songs) return [];
+    const set = new Set<string>();
+    for (const s of songs) {
+      const t = plain(s.title).charAt(0);
+      const a = plain(s.artist).charAt(0);
+      if (/[A-Z0-9]/.test(t)) set.add(t);
+      if (/[A-Z0-9]/.test(a)) set.add(a);
+    }
+    return [...set].sort();
+  }, [songs]);
+
   const filtered = useMemo(() => {
     if (!songs) return [];
-    const q = filter.toLowerCase().trim();
-    if (!q) return songs;
-    return songs.filter(
-      (s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)
-    );
-  }, [songs, filter]);
+    const q = plain(filter.trim());
+    return songs.filter((s) => {
+      if (styleFilter && s.style !== styleFilter) return false;
+      if (letterFilter && plain(s.title).charAt(0) !== letterFilter && plain(s.artist).charAt(0) !== letterFilter)
+        return false;
+      if (q && !plain(s.title).includes(q) && !plain(s.artist).includes(q)) return false;
+      return true;
+    });
+  }, [songs, filter, styleFilter, letterFilter]);
+
+  const selectedSong = songs?.find((s) => s.id === songId) ?? null;
 
   async function join() {
     setError(null);
@@ -106,6 +132,50 @@ export default function EntrarPage() {
                   onChange={(e) => setFilter(e.target.value)}
                 />
               </div>
+              {styles.length > 1 && (
+                <div className="field">
+                  <label>Estilo</label>
+                  <div className="chip-row">
+                    <button
+                      className={`chip ${styleFilter === null ? "active" : ""}`}
+                      onClick={() => setStyleFilter(null)}
+                    >
+                      todos
+                    </button>
+                    {styles.map((st) => (
+                      <button
+                        key={st}
+                        className={`chip ${styleFilter === st ? "active" : ""}`}
+                        onClick={() => setStyleFilter(styleFilter === st ? null : st)}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {letters.length > 1 && (
+                <div className="field">
+                  <label>Letra inicial (música ou artista)</label>
+                  <div className="chip-row">
+                    <button
+                      className={`chip ${letterFilter === null ? "active" : ""}`}
+                      onClick={() => setLetterFilter(null)}
+                    >
+                      todas
+                    </button>
+                    {letters.map((l) => (
+                      <button
+                        key={l}
+                        className={`chip letter ${letterFilter === l ? "active" : ""}`}
+                        onClick={() => setLetterFilter(letterFilter === l ? null : l)}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="song-list" style={{ maxHeight: 320, marginBottom: 14 }}>
                 {songs === null ? (
                   <div className="empty-state">Carregando músicas...</div>
@@ -135,12 +205,24 @@ export default function EntrarPage() {
                   ))
                 )}
               </div>
+              {selectedSong && (
+                <p className="join-summary">
+                  🎤 <b>{name.trim() || "Você"}</b> vai cantar{" "}
+                  <b>
+                    {selectedSong.title} — {selectedSong.artist}
+                  </b>
+                </p>
+              )}
               <button
                 className="btn btn-primary btn-block"
                 disabled={!name.trim() || !songId || sending}
                 onClick={join}
               >
-                {sending ? "Entrando..." : "Entrar na fila 🎤"}
+                {sending
+                  ? "Entrando..."
+                  : selectedSong
+                    ? `Entrar na fila com "${selectedSong.title}" 🎤`
+                    : "Entrar na fila 🎤"}
               </button>
             </div>
           </>
