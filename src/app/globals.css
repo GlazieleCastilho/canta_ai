@@ -217,18 +217,12 @@ select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(-
 }
 .toast-msg.show{opacity:1; transform:translate(-50%,0) scale(1);}
 
-/* filtros do /entrar - chips de estilo e letra inicial */
-.chip-row{display:flex; flex-wrap:wrap; gap:6px;}
-.chip{
-  background:var(--bg-panel-2); color:var(--muted); border:1px solid var(--line);
-  border-radius:999px; padding:6px 12px; font-size:12px; font-weight:700;
-  cursor:pointer; transition:.2s; font-family:inherit;
-}
-.chip.letter{padding:6px 0; width:32px; text-align:center;}
-.chip:hover{color:var(--text); border-color:rgba(255,197,61,.35);}
-.chip.active{
-  background:linear-gradient(135deg,var(--gold),#ff9f43); color:#241000;
-  border-color:transparent;
+/* filtros do /entrar - dropdowns de estilo, artista e letra inicial */
+.filter-row{display:grid; grid-template-columns:1fr 1.4fr .8fr; gap:10px;}
+@media (max-width: 460px){
+  .filter-row{grid-template-columns:1fr 1fr;}
+  /* artista (nomes longos) desce para uma linha inteira própria */
+  .filter-row .field:nth-child(2){order:3; grid-column:1 / -1;}
 }
 .join-summary{
   margin:0 0 12px 0; text-align:center; font-size:13px; color:var(--muted);

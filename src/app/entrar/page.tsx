@@ -13,8 +13,9 @@ export default function EntrarPage() {
   const [name, setName] = useState("");
   const [songId, setSongId] = useState("");
   const [filter, setFilter] = useState("");
-  const [styleFilter, setStyleFilter] = useState<string | null>(null);
-  const [letterFilter, setLetterFilter] = useState<string | null>(null);
+  const [styleFilter, setStyleFilter] = useState("");
+  const [artistFilter, setArtistFilter] = useState("");
+  const [letterFilter, setLetterFilter] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState<Joined | null>(null);
@@ -45,6 +46,10 @@ export default function EntrarPage() {
     () => (songs ? [...new Set(songs.map((s) => s.style))].sort() : []),
     [songs]
   );
+  const artists = useMemo(
+    () => (songs ? [...new Set(songs.map((s) => s.artist))].sort((a, b) => a.localeCompare(b, "pt-BR")) : []),
+    [songs]
+  );
   const letters = useMemo(() => {
     if (!songs) return [];
     const set = new Set<string>();
@@ -62,12 +67,13 @@ export default function EntrarPage() {
     const q = plain(filter.trim());
     return songs.filter((s) => {
       if (styleFilter && s.style !== styleFilter) return false;
+      if (artistFilter && s.artist !== artistFilter) return false;
       if (letterFilter && plain(s.title).charAt(0) !== letterFilter && plain(s.artist).charAt(0) !== letterFilter)
         return false;
       if (q && !plain(s.title).includes(q) && !plain(s.artist).includes(q)) return false;
       return true;
     });
-  }, [songs, filter, styleFilter, letterFilter]);
+  }, [songs, filter, styleFilter, artistFilter, letterFilter]);
 
   const selectedSong = songs?.find((s) => s.id === songId) ?? null;
 
@@ -132,47 +138,40 @@ export default function EntrarPage() {
                   onChange={(e) => setFilter(e.target.value)}
                 />
               </div>
-              {styles.length > 1 && (
-                <div className="field">
-                  <label>Estilo</label>
-                  <div className="chip-row">
-                    <button
-                      className={`chip ${styleFilter === null ? "active" : ""}`}
-                      onClick={() => setStyleFilter(null)}
-                    >
-                      todos
-                    </button>
-                    {styles.map((st) => (
-                      <button
-                        key={st}
-                        className={`chip ${styleFilter === st ? "active" : ""}`}
-                        onClick={() => setStyleFilter(styleFilter === st ? null : st)}
-                      >
-                        {st}
-                      </button>
-                    ))}
+              {songs !== null && songs.length > 0 && (
+                <div className="filter-row">
+                  <div className="field">
+                    <label>Estilo</label>
+                    <select value={styleFilter} onChange={(e) => setStyleFilter(e.target.value)}>
+                      <option value="">Todos</option>
+                      {styles.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                </div>
-              )}
-              {letters.length > 1 && (
-                <div className="field">
-                  <label>Letra inicial (música ou artista)</label>
-                  <div className="chip-row">
-                    <button
-                      className={`chip ${letterFilter === null ? "active" : ""}`}
-                      onClick={() => setLetterFilter(null)}
-                    >
-                      todas
-                    </button>
-                    {letters.map((l) => (
-                      <button
-                        key={l}
-                        className={`chip letter ${letterFilter === l ? "active" : ""}`}
-                        onClick={() => setLetterFilter(letterFilter === l ? null : l)}
-                      >
-                        {l}
-                      </button>
-                    ))}
+                  <div className="field">
+                    <label>Artista</label>
+                    <select value={artistFilter} onChange={(e) => setArtistFilter(e.target.value)}>
+                      <option value="">Todos</option>
+                      {artists.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>Letra inicial</label>
+                    <select value={letterFilter} onChange={(e) => setLetterFilter(e.target.value)}>
+                      <option value="">Todas</option>
+                      {letters.map((l) => (
+                        <option key={l} value={l}>
+                          {l}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               )}
