@@ -25,6 +25,10 @@ export default function PalcoPage() {
   // contagem regressiva do início automático; null = sem contagem
   const [countdown, setCountdown] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
+  // "palco ativado": o navegador só libera áudio automático depois de um
+  // clique na página — o anfitrião ativa uma vez no início do evento
+  const [armed, setArmed] = useState(false);
+  const armedRef = useRef(false);
 
   // refs do motor de performance (portado do protótipo)
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -78,7 +82,9 @@ export default function PalcoPage() {
       setFinals(null);
       setPhase("ready");
       setStarting(false);
-      setCountdown(5); // a música começa sozinha após a contagem
+      // com o palco ativado a música começa sozinha; sem ativação o
+      // navegador bloquearia o áudio, então fica no botão manual
+      setCountdown(armedRef.current ? 5 : null);
       pickVideo(performing.songs.style);
     } else if (!performing && cur && phaseRef.current === "ready") {
       // admin removeu/encerrou antes de começar
@@ -98,6 +104,18 @@ export default function PalcoPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ---------- ativação do palco (1 clique no início do evento) ---------- */
+
+  function armStage() {
+    armedRef.current = true;
+    setArmed(true);
+    // aproveita o clique para já deixar a permissão do microfone concedida
+    navigator.mediaDevices
+      ?.getUserMedia({ audio: true, video: false })
+      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+      .catch(() => {});
+  }
 
   /* ---------- contagem regressiva e início automático ---------- */
 
@@ -374,9 +392,22 @@ export default function PalcoPage() {
               {phase === "ready" && countdown === null && !starting && (
                 <div className="stage-center-overlay">
                   <div className="overlay-sub">{entry.singer_name}, é a sua vez!</div>
-                  <button className="btn btn-primary" onClick={requestMicAndPlay}>
-                    🎙️ Pedir microfone e iniciar
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      armedRef.current = true;
+                      setArmed(true);
+                      setStarting(true);
+                      requestMicAndPlay();
+                    }}
+                  >
+                    🎙️ Iniciar a música
                   </button>
+                  {!armed && (
+                    <div className="overlay-hint">
+                      Este primeiro clique ativa o palco — as próximas músicas começam sozinhas.
+                    </div>
+                  )}
                 </div>
               )}
               {phase === "finished" && finals && grade && (
@@ -410,6 +441,17 @@ export default function PalcoPage() {
                       : "Aponte a câmera para o QR code e entre na fila! 🎶"}
                   </p>
                 </div>
+                {!armed && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <button className="btn btn-primary" onClick={armStage}>
+                      🎬 Ativar palco
+                    </button>
+                    <div className="overlay-hint">
+                      Clique uma vez no início do evento: libera o som e o microfone para as
+                      apresentações começarem sozinhas.
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
