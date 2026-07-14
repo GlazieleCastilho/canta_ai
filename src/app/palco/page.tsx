@@ -22,6 +22,9 @@ export default function PalcoPage() {
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
   const [finals, setFinals] = useState<{ total: number; best: number } | null>(null);
   const [queueFlash, setQueueFlash] = useState(0);
+  // contagem regressiva do início automático; null = sem contagem
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
 
   // refs do motor de performance (portado do protótipo)
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -74,11 +77,15 @@ export default function PalcoPage() {
       setStreak(0);
       setFinals(null);
       setPhase("ready");
+      setStarting(false);
+      setCountdown(5); // a música começa sozinha após a contagem
       pickVideo(performing.songs.style);
     } else if (!performing && cur && phaseRef.current === "ready") {
       // admin removeu/encerrou antes de começar
       setEntry(null);
       setPhase("idle");
+      setCountdown(null);
+      setStarting(false);
     }
   }, []);
 
@@ -91,6 +98,25 @@ export default function PalcoPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ---------- contagem regressiva e início automático ---------- */
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (phaseRef.current !== "ready") {
+      setCountdown(null);
+      return;
+    }
+    if (countdown <= 0) {
+      setCountdown(null);
+      setStarting(true);
+      requestMicAndPlay();
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown]);
 
   /* ---------- sorteio do vídeo de fundo (seção 8 do plano) ---------- */
 
@@ -123,7 +149,10 @@ export default function PalcoPage() {
         beginPlayback(true);
       })
       .catch(() => {
-        alert("Não foi possível acessar o microfone. A performance vai rodar sem pontuação.");
+        // Sem alert: na TV um modal bloquearia o evento inteiro.
+        setToast({ msg: "Sem microfone — a música segue sem pontuação! 🎶", key: Date.now() });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 3500);
         beginPlayback(false);
       });
   }
@@ -134,8 +163,14 @@ export default function PalcoPage() {
     if (!audio) return;
     audio.currentTime = 0;
     if (video) video.currentTime = 0;
-    audio.play();
-    video?.play();
+    // Autoplay pode ser bloqueado se o navegador ainda não teve interação:
+    // nesse caso volta ao estado "ready" e o botão manual assume.
+    audio.play().catch(() => {
+      stopEngine();
+      setPhase("ready");
+      setStarting(false);
+    });
+    video?.play().catch(() => {});
     lineScoresRef.current = [];
     streakRef.current = 0;
     bestStreakRef.current = 0;
@@ -314,7 +349,29 @@ export default function PalcoPage() {
                     </div>
                   </div>
                   <div className="stage-controls">
-                    {phase === "ready" && (
+                    {phase === "ready" && countdown !== null && (
+                      <div className="countdown-box">
+                        <div className="countdown-num" key={countdown}>
+                          {countdown}
+                        </div>
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => {
+                            setCountdown(null);
+                            setStarting(true);
+                            requestMicAndPlay();
+                          }}
+                        >
+                          Começar agora ⏩
+                        </button>
+                      </div>
+                    )}
+                    {phase === "ready" && countdown === null && starting && (
+                      <div className="countdown-box">
+                        <div className="starting-msg">🎙️ Preparando o microfone...</div>
+                      </div>
+                    )}
+                    {phase === "ready" && countdown === null && !starting && (
                       <button className="btn btn-primary" onClick={requestMicAndPlay}>
                         🎙️ Pedir microfone e iniciar
                       </button>
