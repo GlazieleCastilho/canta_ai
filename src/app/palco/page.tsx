@@ -339,51 +339,61 @@ export default function PalcoPage() {
                   <div className="lyric-next">{lyrics.next}</div>
                 </div>
 
-                <div className="hud">
-                  <div className="score-box">
-                    <div className="label">Pontuação</div>
-                    <div className="val">{score}</div>
-                    <div className="streak">Sequência: {streak}</div>
-                    <div className="mic-meter">
-                      <i ref={micBarRef as React.RefObject<HTMLElement & HTMLLIElement>} />
-                    </div>
+                {phase === "playing" && (
+                  <div className="stage-bottom-controls">
+                    <button className="btn btn-danger" onClick={endPerformance}>
+                      Encerrar performance
+                    </button>
                   </div>
-                  <div className="stage-controls">
-                    {phase === "ready" && countdown !== null && (
-                      <div className="countdown-box">
-                        <div className="countdown-num" key={countdown}>
-                          {countdown}
-                        </div>
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => {
-                            setCountdown(null);
-                            setStarting(true);
-                            requestMicAndPlay();
-                          }}
-                        >
-                          Começar agora ⏩
-                        </button>
-                      </div>
-                    )}
-                    {phase === "ready" && countdown === null && starting && (
-                      <div className="countdown-box">
-                        <div className="starting-msg">🎙️ Preparando o microfone...</div>
-                      </div>
-                    )}
-                    {phase === "ready" && countdown === null && !starting && (
-                      <button className="btn btn-primary" onClick={requestMicAndPlay}>
-                        🎙️ Pedir microfone e iniciar
-                      </button>
-                    )}
-                    {phase === "playing" && (
-                      <button className="btn btn-danger" onClick={endPerformance}>
-                        Encerrar performance
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
+
+              {phase === "ready" && countdown !== null && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">{entry.singer_name}, é a sua vez!</div>
+                  <div className="countdown-num" key={countdown}>
+                    {countdown}
+                  </div>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setCountdown(null);
+                      setStarting(true);
+                      requestMicAndPlay();
+                    }}
+                  >
+                    Começar agora ⏩
+                  </button>
+                </div>
+              )}
+              {phase === "ready" && countdown === null && starting && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">🎙️ Preparando o microfone...</div>
+                </div>
+              )}
+              {phase === "ready" && countdown === null && !starting && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">{entry.singer_name}, é a sua vez!</div>
+                  <button className="btn btn-primary" onClick={requestMicAndPlay}>
+                    🎙️ Pedir microfone e iniciar
+                  </button>
+                </div>
+              )}
+              {phase === "finished" && finals && grade && (
+                <div className="stage-center-overlay">
+                  <div className="grade-big">{grade.grade}</div>
+                  <div className="score-big">{finals.total} / 100</div>
+                  <div className="overlay-sub">
+                    <b>{grade.label}</b>
+                    <br />
+                    {entry.singer_name} cantou &quot;{entry.songs.title}&quot; · maior sequência:{" "}
+                    {finals.best} linhas
+                  </div>
+                  <button className="btn btn-primary" onClick={closeModal}>
+                    Chamar o próximo cantor
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -406,25 +416,6 @@ export default function PalcoPage() {
         </div>
       </main>
       <div className="chase-lights pink" />
-
-      {finals && grade && entry && entry.songs && (
-        <div className="modal-bg">
-          <div className="modal">
-            <div className="grade">{grade.grade}</div>
-            <div className="num">{finals.total} / 100</div>
-            <p>
-              <b>{grade.label}</b>
-              <br />
-              {entry.singer_name} cantou &quot;{entry.songs.title}&quot;
-              <br />
-              Maior sequência: {finals.best} linhas
-            </p>
-            <button className="btn btn-primary btn-block" onClick={closeModal}>
-              Chamar o próximo cantor
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
