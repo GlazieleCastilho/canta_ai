@@ -85,6 +85,10 @@ function Panel() {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [entrarUrl, setEntrarUrl] = useState("");
+  // música com a letra em edição (modal) e o texto do rascunho
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
+  const [lrcDraft, setLrcDraft] = useState("");
+  const [savingLrc, setSavingLrc] = useState(false);
 
   useEffect(() => {
     setEntrarUrl(`${window.location.origin}/entrar`);
@@ -238,12 +242,23 @@ function Panel() {
                         </span>
                       </div>
                     </div>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => act(() => api(`/api/songs/${s.id}`, { method: "DELETE" }))}
-                    >
-                      Remover
-                    </button>
+                    <div className="queue-actions">
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => {
+                          setEditingSong(s);
+                          setLrcDraft(s.lrc_text);
+                        }}
+                      >
+                        Letra
+                      </button>
+                      <button
+                        className="btn btn-danger"
+                        onClick={() => act(() => api(`/api/songs/${s.id}`, { method: "DELETE" }))}
+                      >
+                        Remover
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -284,6 +299,63 @@ function Panel() {
           </div>
         </div>
       </div>
+
+      {editingSong && (
+        <div className="modal-bg">
+          <div className="modal lrc-modal">
+            <h2 className="section-title">
+              <span className="dot" /> Editar letra — {editingSong.title}
+            </h2>
+            <p style={{ color: "var(--muted)", fontSize: 12.5, marginTop: 0 }}>
+              Cole o LRC da <b>mesma gravação do mp3</b> (versão de estúdio × ao vivo têm tempos
+              diferentes). Linhas no formato <code>[mm:ss.xx] letra</code>.
+            </p>
+            <textarea
+              className="lrc-textarea"
+              value={lrcDraft}
+              onChange={(e) => setLrcDraft(e.target.value)}
+              spellCheck={false}
+            />
+            <p style={{ fontSize: 12.5, margin: "8px 0" }}>
+              {parseLRC(lrcDraft).length ? (
+                <span style={{ color: "var(--cyan)" }}>
+                  ✓ {parseLRC(lrcDraft).length} linhas sincronizadas reconhecidas
+                </span>
+              ) : (
+                <span style={{ color: "#ff6b8f" }}>
+                  Nenhuma linha sincronizada reconhecida — confira o formato.
+                </span>
+              )}
+            </p>
+            <div className="queue-actions" style={{ justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" disabled={savingLrc} onClick={() => setEditingSong(null)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                disabled={savingLrc || !lrcDraft.trim() || parseLRC(lrcDraft).length === 0}
+                onClick={async () => {
+                  setSavingLrc(true);
+                  try {
+                    await api(`/api/songs/${editingSong.id}`, {
+                      method: "PATCH",
+                      body: JSON.stringify({ lrc_text: lrcDraft }),
+                    });
+                    setEditingSong(null);
+                    await refresh();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Falha ao salvar a letra.");
+                  } finally {
+                    setSavingLrc(false);
+                  }
+                }}
+              >
+                {savingLrc ? "Salvando..." : "Salvar letra"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
