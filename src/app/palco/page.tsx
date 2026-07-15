@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { QRCodeCanvas } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { parseLRC, type LrcLine } from "@/karaoke/lrc";
@@ -33,6 +34,8 @@ export default function PalcoPage() {
   // sincronizada sem som, sem microfone e sem controles do telão
   const [lyricsOnly, setLyricsOnly] = useState(false);
   const lyricsOnlyRef = useRef(false);
+  // QR fixo no canto do telão para os convidados entrarem na fila
+  const [entrarUrl, setEntrarUrl] = useState("");
   // relógio do modo "só letra": marca o instante do início e a letra corre
   // por tempo decorrido — imune a autoplay bloqueado e aba em segundo plano
   const startTsRef = useRef(0);
@@ -115,6 +118,8 @@ export default function PalcoPage() {
     if (only) {
       lyricsOnlyRef.current = true;
       setLyricsOnly(true);
+    } else {
+      setEntrarUrl(`${window.location.origin}/entrar`);
     }
     if (only || navigator.userActivation?.hasBeenActive) {
       armedRef.current = true;
@@ -399,6 +404,12 @@ export default function PalcoPage() {
             <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
               ←
             </Link>
+          )}
+          {!lyricsOnly && entrarUrl && (
+            <div className="stage-qr">
+              <QRCodeCanvas value={entrarUrl} size={88} marginSize={2} />
+              <span>📱 Entre na fila</span>
+            </div>
           )}
           {entry && entry.songs ? (
             <>

@@ -263,6 +263,16 @@ select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(-
 .score-big{font-family:var(--font-mono); font-size:clamp(36px,7vh,64px); font-weight:700; color:var(--cyan);}
 .stage-bottom-controls{display:flex; justify-content:center;}
 
+/* QR fixo no canto inferior direito do telão (entrar na fila) */
+.stage-qr{
+  position:absolute; right:16px; bottom:16px; z-index:6;
+  display:flex; flex-direction:column; align-items:center; gap:6px;
+  background:rgba(23,14,43,.82); backdrop-filter:blur(8px);
+  border:1px solid var(--line); border-radius:14px; padding:10px 12px;
+}
+.stage-qr canvas{border-radius:8px;}
+.stage-qr span{font-size:11px; color:var(--muted); font-weight:800; letter-spacing:.6px; text-transform:uppercase;}
+
 /* botão de voltar do palco - canto superior esquerdo, discreto para não roubar a cena */
 .stage-back{
   position:absolute; top:16px; left:16px; z-index:6;
