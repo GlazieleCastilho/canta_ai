@@ -31,7 +31,6 @@ export default function PalcoPage() {
   // "palco ativado": o navegador só libera áudio automático depois de um
   // clique na página — o anfitrião ativa uma vez no início do evento
   const [armed, setArmed] = useState(false);
-  const armedRef = useRef(false);
   // modo "só letra" (?letra=1): teleprompter do convidado — letra
   // sincronizada sem som, sem microfone e sem controles do telão
   const [lyricsOnly, setLyricsOnly] = useState(false);
@@ -98,9 +97,9 @@ export default function PalcoPage() {
       setFinals(null);
       setPhase("ready");
       setStarting(false);
-      // com o palco ativado a música começa sozinha; sem ativação o
-      // navegador bloquearia o áudio, então fica no botão manual
-      setCountdown(armedRef.current ? 5 : null);
+      // sempre tenta o início automático; se o navegador bloquear o som
+      // (falta de interação), o beginPlayback recua para o botão manual
+      setCountdown(5);
       pickVideo(performing.songs.style);
     } else if (!performing && cur && phaseRef.current === "ready") {
       // admin removeu/encerrou antes de começar
@@ -124,7 +123,6 @@ export default function PalcoPage() {
       setEntrarUrl(`${window.location.origin}/entrar`);
     }
     if (only || navigator.userActivation?.hasBeenActive) {
-      armedRef.current = true;
       setArmed(true);
     }
   }, []);
@@ -155,7 +153,6 @@ export default function PalcoPage() {
   /* ---------- ativação do palco (1 clique no início do evento) ---------- */
 
   function armStage() {
-    armedRef.current = true;
     setArmed(true);
     // aproveita o clique para já deixar a permissão do microfone concedida
     navigator.mediaDevices
@@ -533,7 +530,6 @@ export default function PalcoPage() {
                   <button
                     className="btn btn-primary"
                     onClick={() => {
-                      armedRef.current = true;
                       setArmed(true);
                       setStarting(true);
                       requestMicAndPlay();
@@ -541,11 +537,10 @@ export default function PalcoPage() {
                   >
                     🎙️ Iniciar a música
                   </button>
-                  {!armed && (
-                    <div className="overlay-hint">
-                      Este primeiro clique ativa o palco — as próximas músicas começam sozinhas.
-                    </div>
-                  )}
+                  <div className="overlay-hint">
+                    O navegador bloqueou o início automático — este toque libera o som para o
+                    resto do evento.
+                  </div>
                 </div>
               )}
               {phase === "finished" && lyricsOnly && (
@@ -604,8 +599,8 @@ export default function PalcoPage() {
                       🎬 Ativar palco
                     </button>
                     <div className="overlay-hint">
-                      Clique uma vez no início do evento: libera o som e o microfone para as
-                      apresentações começarem sozinhas.
+                      Recomendado no início do evento: um toque libera o som e o microfone,
+                      garantindo que todas as músicas comecem sozinhas.
                     </div>
                   </div>
                 )}
