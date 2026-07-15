@@ -17,6 +17,7 @@ export default function EntrarPage() {
   const [styleFilter, setStyleFilter] = useState("");
   const [artistFilter, setArtistFilter] = useState("");
   const [letterFilter, setLetterFilter] = useState("");
+  const [viewMode, setViewMode] = useState<"lista" | "cards">("lista");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState<Joined | null>(null);
@@ -185,18 +186,38 @@ export default function EntrarPage() {
                   </div>
                 </div>
               )}
-              <div className="song-list" style={{ maxHeight: 320, marginBottom: 14 }}>
-                {songs === null ? (
-                  <div className="empty-state">Carregando músicas...</div>
-                ) : filtered.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="big">🎶</div>
-                    {songs.length === 0
-                      ? "Nenhuma música cadastrada ainda — chama o anfitrião!"
-                      : "Nada encontrado com essa busca."}
-                  </div>
-                ) : (
-                  filtered.map((s) => (
+              {songs !== null && songs.length > 0 && (
+                <div className="view-toggle">
+                  <button
+                    className={viewMode === "lista" ? "active" : ""}
+                    onClick={() => setViewMode("lista")}
+                  >
+                    ☰ Lista
+                  </button>
+                  <button
+                    className={viewMode === "cards" ? "active" : ""}
+                    onClick={() => setViewMode("cards")}
+                  >
+                    ▦ Cards
+                  </button>
+                </div>
+              )}
+              {songs === null || filtered.length === 0 ? (
+                <div className="song-list" style={{ maxHeight: 320, marginBottom: 14 }}>
+                  {songs === null ? (
+                    <div className="empty-state">Carregando músicas...</div>
+                  ) : (
+                    <div className="empty-state">
+                      <div className="big">🎶</div>
+                      {songs.length === 0
+                        ? "Nenhuma música cadastrada ainda — chama o anfitrião!"
+                        : "Nada encontrado com essa busca."}
+                    </div>
+                  )}
+                </div>
+              ) : viewMode === "lista" ? (
+                <div className="song-list" style={{ maxHeight: 320, marginBottom: 14 }}>
+                  {filtered.map((s) => (
                     <div
                       key={s.id}
                       className={`song-card selectable ${songId === s.id ? "selected" : ""}`}
@@ -211,9 +232,24 @@ export default function EntrarPage() {
                         </div>
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="song-grid">
+                  {filtered.map((s) => (
+                    <div
+                      key={s.id}
+                      className={`song-tile ${songId === s.id ? "selected" : ""}`}
+                      onClick={() => setSongId(s.id)}
+                    >
+                      <div className="emoji">{songId === s.id ? "✅" : "🎵"}</div>
+                      <div className="t">{s.title}</div>
+                      <div className="a">{s.artist}</div>
+                      <span className="tag style">{s.style}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {selectedSong && (
                 <p className="join-summary">
                   🎤 <b>{name.trim() || "Você"}</b> vai cantar{" "}
