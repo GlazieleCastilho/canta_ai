@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk -F= '{print length\\($2\\)\"\\)\"}')",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\('role:', d.get\\('role'\\)\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s http://localhost:3000/api/songs)",
+      "Bash(curl -s http://localhost:3000/api/queue)",
+      "Bash(curl -s http://localhost:3000/api/videos)",
+      "Bash(curl -s -b jar.txt -X POST http://localhost:3000/api/songs -H 'Content-Type: application/json' -d '{\"title\":\"Teste Claude\",\"artist\":\"Teste\",\"style\":\"pop\",\"mp3_path\":\"audio/teste.mp3\",\"lrc_text\":\"[00:01.00]linha de teste\"}')",
+      "Bash(git checkout *)",
+      "Bash(git restore *)",
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --base main --head ajustes-palco-qr --title 'Botão de voltar no /palco + link para o palco no /admin' --body ' *)",
+      "Bash(curl -s -o /dev/null -w \"local /entrar: %{http_code}\\\\n\" http://localhost:3000/entrar)",
+      "Bash(curl -s -o /dev/null -w \"/entrar: %{http_code}\\\\n\" http://localhost:3000/entrar)",
+      "Bash(curl -s -b jar.txt -X DELETE http://localhost:3000/api/queue/2513c9c8-06f8-4482-975d-8eea92c6d811)",
+      "Bash(curl -s -b jar.txt -X DELETE http://localhost:3000/api/songs/ab873af0-fe47-455b-ae67-fae8ad5e4226)",
+      "Bash(npx tsc *)",
+      "Read(//Library/Developer/CommandLineTools/usr/bin/**)",
+      "Bash(xcode-select -p)",
+      "Read(//Applications/**)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git add *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git commit -m ' *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git push *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git log *)",
+      "Bash(awk '{print $NF}')",
+      "Bash(curl -s -b /private/tmp/claude-501/-Users-user-canta-ai/492d9503-8935-49b0-a5bd-6f8d9b1b4445/scratchpad/jar.txt -X PATCH http://localhost:3000/api/songs/ed3ae928-f9a8-44c4-92cc-2a35905762c8 -H 'Content-Type: application/json' -d '{\"lrc_text\":\"[00:01.00]teste patch\\\\n[00:03.00]segunda linha\"}')",
+      "Bash(curl -s -X POST http://localhost:3000/api/queue -H 'Content-Type: application/json' -d '{\"singer_name\":\"eu\",\"song_id\":\"2202b27a-9e32-416d-90b9-8257005adf10\"}')",
+      "Bash(curl -s -b jar.txt -X POST http://localhost:3000/api/queue/9cedcfdf-470f-4563-a7b9-428b4b7a7ed8/call)",
+      "Bash(curl -s -b jar.txt -X POST http://localhost:3000/api/queue/d5f8344a-57aa-4194-95d9-ffb9b3cdbbba/call)",
+      "Bash(gh pr *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git checkout *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git pull *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git merge ajustes-palco-qr -m 'Merge branch '\\\\''ajustes-palco-qr'\\\\'': demais ajustes do palco, entrar e admin *)",
+      "Bash(/Library/Developer/CommandLineTools/usr/bin/git status *)"
+    ]
+  }
+}
