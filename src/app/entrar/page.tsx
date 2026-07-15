@@ -101,11 +101,12 @@ export default function EntrarPage() {
   const performingMe = joined && queue.some((q) => q.id === joined.id && q.status === "performing");
   const gone = joined && myIndex < 0 && !performingMe;
 
-  // chamado ao palco: mostra o "É agora!" e leva sozinho para o /palco
+  // chamado ao palco: mostra o "É agora!" e leva sozinho para a letra
+  // (modo teleprompter: só a letra sincronizada — o som fica no telão)
   const router = useRouter();
   useEffect(() => {
     if (!performingMe) return;
-    const t = setTimeout(() => router.push("/palco"), 3000);
+    const t = setTimeout(() => router.push("/palco?letra=1"), 3000);
     return () => clearTimeout(t);
   }, [performingMe, router]);
 

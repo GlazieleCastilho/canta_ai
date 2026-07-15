@@ -108,6 +108,7 @@ h2.section-title .dot{width:8px;height:8px; border-radius:50%; background:var(--
 
 .btn{
   border:none; border-radius:10px; padding:11px 18px; font-weight:800; font-size:13.5px; letter-spacing:.3px;
+  display:inline-block; text-decoration:none; text-align:center; /* também funciona como <a> */
 }
 .btn-primary{background:linear-gradient(135deg,var(--gold),#ff9f43); color:#241000; box-shadow:0 6px 16px rgba(255,197,61,.28);}
 .btn-primary:hover{filter:brightness(1.06);}

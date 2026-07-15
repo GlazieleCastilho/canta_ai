@@ -29,6 +29,13 @@ export default function PalcoPage() {
   // clique na página — o anfitrião ativa uma vez no início do evento
   const [armed, setArmed] = useState(false);
   const armedRef = useRef(false);
+  // modo "só letra" (?letra=1): teleprompter do convidado — letra
+  // sincronizada sem som, sem microfone e sem controles do telão
+  const [lyricsOnly, setLyricsOnly] = useState(false);
+  const lyricsOnlyRef = useRef(false);
+  // relógio do modo "só letra": marca o instante do início e a letra corre
+  // por tempo decorrido — imune a autoplay bloqueado e aba em segundo plano
+  const startTsRef = useRef(0);
   // popup dos próximos da fila: fixo só no palco vazio; em cena aparece
   // alguns segundos quando a fila muda e desliza para fora
   const [alertVisible, setAlertVisible] = useState(true);
@@ -101,8 +108,15 @@ export default function PalcoPage() {
 
   // Se a página já recebeu interação (ex: veio do /entrar via redirect),
   // o navegador já libera o autoplay — dá pra armar o palco direto.
+  // No modo "só letra" o áudio fica mudo (autoplay mudo é sempre
+  // permitido), então arma incondicionalmente.
   useEffect(() => {
-    if (typeof navigator !== "undefined" && navigator.userActivation?.hasBeenActive) {
+    const only = new URLSearchParams(window.location.search).has("letra");
+    if (only) {
+      lyricsOnlyRef.current = true;
+      setLyricsOnly(true);
+    }
+    if (only || navigator.userActivation?.hasBeenActive) {
       armedRef.current = true;
       setArmed(true);
     }
@@ -165,6 +179,10 @@ export default function PalcoPage() {
   /* ---------- sorteio do vídeo de fundo (seção 8 do plano) ---------- */
 
   async function pickVideo(style: string) {
+    if (lyricsOnlyRef.current) {
+      setVideoPath(null); // teleprompter não gasta banda com vídeo
+      return;
+    }
     try {
       const videos = await api<BackgroundVideo[]>("/api/videos");
       const sameStyle = videos.filter((v) => v.style === style);
@@ -178,6 +196,10 @@ export default function PalcoPage() {
   /* ---------- motor de performance (portado do protótipo) ---------- */
 
   function requestMicAndPlay() {
+    if (lyricsOnlyRef.current) {
+      beginPlayback(false); // sem microfone: só acompanha a letra
+      return;
+    }
     navigator.mediaDevices
       .getUserMedia({ audio: true, video: false })
       .then((stream) => {
@@ -207,14 +229,19 @@ export default function PalcoPage() {
     if (!audio) return;
     audio.currentTime = 0;
     if (video) video.currentTime = 0;
-    // Autoplay pode ser bloqueado se o navegador ainda não teve interação:
-    // nesse caso volta ao estado "ready" e o botão manual assume.
-    audio.play().catch(() => {
-      stopEngine();
-      setPhase("ready");
-      setStarting(false);
-    });
-    video?.play().catch(() => {});
+    if (lyricsOnlyRef.current) {
+      // teleprompter: não toca nada — só marca o início do relógio
+      startTsRef.current = performance.now();
+    } else {
+      // Autoplay pode ser bloqueado se o navegador ainda não teve interação:
+      // nesse caso volta ao estado "ready" e o botão manual assume.
+      audio.play().catch(() => {
+        stopEngine();
+        setPhase("ready");
+        setStarting(false);
+      });
+      video?.play().catch(() => {});
+    }
     lineScoresRef.current = [];
     streakRef.current = 0;
     bestStreakRef.current = 0;
@@ -224,17 +251,22 @@ export default function PalcoPage() {
     setStreak(0);
     setPhase("playing");
 
-    // vídeo segue o áudio (o áudio é o relógio-mestre) — lógica do protótipo
+    // vídeo segue o áudio (o áudio é o relógio-mestre) — lógica do protótipo;
+    // no modo "só letra" o relógio é o tempo decorrido desde o início
     syncTimerRef.current = setInterval(() => {
       const a = audioRef.current,
         v = videoRef.current;
       if (!a) return;
-      if (v && Math.abs(v.currentTime - a.currentTime) > 0.35) {
+      const only = lyricsOnlyRef.current;
+      const t = only ? (performance.now() - startTsRef.current) / 1000 : a.currentTime;
+      if (!only && v && Math.abs(v.currentTime - a.currentTime) > 0.35) {
         v.currentTime = a.currentTime;
       }
-      updateLyrics(a.currentTime);
-      updateFill(a.currentTime);
-      if (a.ended) endPerformance();
+      updateLyrics(t);
+      updateFill(t);
+      const lastLine = lrcRef.current[lrcRef.current.length - 1];
+      const acabou = only ? t >= (a.duration || (lastLine?.time ?? 0) + 6) : a.ended;
+      if (acabou) endPerformance();
     }, 120);
 
     if (micReady) {
@@ -341,7 +373,10 @@ export default function PalcoPage() {
     setFinals({ total, best: bestStreakRef.current });
     setPhase("finished");
     const cur = entryRef.current;
-    if (cur) api(`/api/queue/${cur.id}/done`, { method: "POST" }).catch(() => {});
+    // quem encerra a apresentação na fila é o telão — o teleprompter não
+    if (cur && !lyricsOnlyRef.current) {
+      api(`/api/queue/${cur.id}/done`, { method: "POST" }).catch(() => {});
+    }
   }
 
   function closeModal() {
@@ -360,9 +395,11 @@ export default function PalcoPage() {
       <div className="chase-lights" />
       <main style={{ paddingTop: 16 }}>
         <div className="stage-wrap">
-          <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
-            ←
-          </Link>
+          {!lyricsOnly && (
+            <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
+              ←
+            </Link>
+          )}
           {entry && entry.songs ? (
             <>
               {videoPath && (
@@ -406,11 +443,16 @@ export default function PalcoPage() {
                   <div className="lyric-next">{lyrics.next}</div>
                 </div>
 
-                {phase === "playing" && (
+                {phase === "playing" && !lyricsOnly && (
                   <div className="stage-bottom-controls">
                     <button className="btn btn-danger" onClick={endPerformance}>
                       Encerrar performance
                     </button>
+                  </div>
+                )}
+                {phase === "playing" && lyricsOnly && (
+                  <div className="stage-bottom-controls">
+                    <div className="overlay-hint">O som toca no telão — acompanhe a letra por aqui 📺</div>
                   </div>
                 )}
               </div>
@@ -459,7 +501,19 @@ export default function PalcoPage() {
                   )}
                 </div>
               )}
-              {phase === "finished" && finals && grade && (
+              {phase === "finished" && lyricsOnly && (
+                <div className="stage-center-overlay">
+                  <div className="grade-big">👏</div>
+                  <div className="overlay-sub">
+                    Mandou bem, {entry.singer_name}!
+                    <br />A pontuação aparece no telão.
+                  </div>
+                  <Link href="/entrar" className="btn btn-primary">
+                    Voltar para a fila 🎶
+                  </Link>
+                </div>
+              )}
+              {phase === "finished" && !lyricsOnly && finals && grade && (
                 <div className="stage-center-overlay">
                   <div className="grade-big">{grade.grade}</div>
                   <div className="score-big">{finals.total} / 100</div>
