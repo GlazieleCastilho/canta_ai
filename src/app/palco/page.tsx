@@ -26,6 +26,8 @@ export default function PalcoPage() {
   // contagem regressiva do início automático; null = sem contagem
   const [countdown, setCountdown] = useState<number | null>(null);
   const [starting, setStarting] = useState(false);
+  // contagem para chamar o próximo cantor sozinho após o placar final
+  const [nextIn, setNextIn] = useState<number | null>(null);
   // "palco ativado": o navegador só libera áudio automático depois de um
   // clique na página — o anfitrião ativa uma vez no início do evento
   const [armed, setArmed] = useState(false);
@@ -381,14 +383,38 @@ export default function PalcoPage() {
     // quem encerra a apresentação na fila é o telão — o teleprompter não
     if (cur && !lyricsOnlyRef.current) {
       api(`/api/queue/${cur.id}/done`, { method: "POST" }).catch(() => {});
+      setNextIn(10); // placar fica na tela e o próximo é chamado sozinho
     }
   }
 
-  function closeModal() {
+  /** Chama o próximo da fila e limpa o palco (o poll carrega quem vier). */
+  async function callNext() {
+    setNextIn(null);
     setFinals(null);
     setEntry(null);
     setPhase("idle");
+    try {
+      await api("/api/queue/next", { method: "POST" });
+    } catch {
+      /* fila vazia ou corrida com o admin — o poll resolve */
+    }
+    pollQueue();
   }
+
+  useEffect(() => {
+    if (nextIn === null) return;
+    if (phaseRef.current !== "finished") {
+      setNextIn(null);
+      return;
+    }
+    if (nextIn <= 0) {
+      callNext();
+      return;
+    }
+    const t = setTimeout(() => setNextIn((n) => (n === null ? null : n - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextIn]);
 
   /* ---------- render ---------- */
 
@@ -534,8 +560,15 @@ export default function PalcoPage() {
                     {entry.singer_name} cantou &quot;{entry.songs.title}&quot; · maior sequência:{" "}
                     {finals.best} linhas
                   </div>
-                  <button className="btn btn-primary" onClick={closeModal}>
-                    Chamar o próximo cantor
+                  {nextIn !== null && (
+                    <div className="overlay-hint">
+                      {waiting.length
+                        ? `Chamando ${waiting[0].singer_name} em ${nextIn}s...`
+                        : `Fechando em ${nextIn}s — a fila está vazia.`}
+                    </div>
+                  )}
+                  <button className="btn btn-primary" onClick={callNext}>
+                    {waiting.length ? "Chamar o próximo agora ⏩" : "Liberar o palco"}
                   </button>
                 </div>
               )}
