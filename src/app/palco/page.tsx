@@ -21,7 +21,9 @@ export default function PalcoPage() {
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
-  const [finals, setFinals] = useState<{ total: number; best: number } | null>(null);
+  // scored = teve microfone durante a apresentação (pontuação é opcional)
+  const [finals, setFinals] = useState<{ total: number; best: number; scored: boolean } | null>(null);
+  const [micGranted, setMicGranted] = useState(false);
   const [queueFlash, setQueueFlash] = useState(0);
   // contagem regressiva do início automático; null = sem contagem
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -64,6 +66,7 @@ export default function PalcoPage() {
   const phaseRef = useRef<Phase>("idle");
   const entryRef = useRef<QueueEntry | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const micUsedRef = useRef(false);
   phaseRef.current = phase;
   entryRef.current = entry;
 
@@ -125,6 +128,11 @@ export default function PalcoPage() {
     if (only || navigator.userActivation?.hasBeenActive) {
       setArmed(true);
     }
+    // esconde o botão de pontuação se o microfone já foi autorizado antes
+    navigator.permissions
+      ?.query({ name: "microphone" as PermissionName })
+      .then((st) => setMicGranted(st.state === "granted"))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -153,11 +161,24 @@ export default function PalcoPage() {
   /* ---------- ativação do palco (1 clique no início do evento) ---------- */
 
   function armStage() {
-    setArmed(true);
-    // aproveita o clique para já deixar a permissão do microfone concedida
+    setArmed(true); // só destrava o som — microfone é opcional, à parte
+  }
+
+  /**
+   * Pontuação por microfone é OPCIONAL: em evento real o microfone do
+   * cantor costuma ser externo (caixa amplificada), então nunca pedimos
+   * permissão no meio do show. Este botão ativa de propósito.
+   */
+  function enableScoring() {
     navigator.mediaDevices
       ?.getUserMedia({ audio: true, video: false })
-      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+      .then((stream) => {
+        stream.getTracks().forEach((t) => t.stop());
+        setMicGranted(true);
+        setToast({ msg: "Pontuação por microfone ativada! 🎙️", key: Date.now() });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+      })
       .catch(() => {});
   }
 
@@ -172,7 +193,7 @@ export default function PalcoPage() {
     if (countdown <= 0) {
       setCountdown(null);
       setStarting(true);
-      requestMicAndPlay();
+      startPerformance();
       return;
     }
     const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
@@ -199,9 +220,25 @@ export default function PalcoPage() {
 
   /* ---------- motor de performance (portado do protótipo) ---------- */
 
-  function requestMicAndPlay() {
+  /**
+   * Inicia a apresentação. NUNCA pede permissão de microfone aqui: a
+   * pontuação só entra se a permissão já foi concedida antes (botão
+   * "Ativar pontuação"). Sem microfone, a música toca normalmente.
+   */
+  async function startPerformance() {
     if (lyricsOnlyRef.current) {
-      beginPlayback(false); // sem microfone: só acompanha a letra
+      beginPlayback(false); // teleprompter: só acompanha a letra
+      return;
+    }
+    let granted = false;
+    try {
+      const st = await navigator.permissions.query({ name: "microphone" as PermissionName });
+      granted = st.state === "granted";
+    } catch {
+      granted = false; // navegador sem a API — segue sem pontuação
+    }
+    if (!granted) {
+      beginPlayback(false);
       return;
     }
     navigator.mediaDevices
@@ -218,13 +255,7 @@ export default function PalcoPage() {
         micSourceRef.current.connect(analyser);
         beginPlayback(true);
       })
-      .catch(() => {
-        // Sem alert: na TV um modal bloquearia o evento inteiro.
-        setToast({ msg: "Sem microfone — a música segue sem pontuação! 🎶", key: Date.now() });
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        toastTimerRef.current = setTimeout(() => setToast(null), 3500);
-        beginPlayback(false);
-      });
+      .catch(() => beginPlayback(false));
   }
 
   function beginPlayback(micReady: boolean) {
@@ -256,6 +287,7 @@ export default function PalcoPage() {
       });
       video?.play().catch(() => {});
     }
+    micUsedRef.current = micReady;
     lineScoresRef.current = [];
     streakRef.current = 0;
     bestStreakRef.current = 0;
@@ -384,7 +416,7 @@ export default function PalcoPage() {
     stopEngine();
     const scores = lineScoresRef.current;
     const total = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-    setFinals({ total, best: bestStreakRef.current });
+    setFinals({ total, best: bestStreakRef.current, scored: micUsedRef.current });
     setPhase("finished");
     const cur = entryRef.current;
     // quem encerra a apresentação na fila é o telão — o teleprompter não
@@ -512,7 +544,7 @@ export default function PalcoPage() {
                     onClick={() => {
                       setCountdown(null);
                       setStarting(true);
-                      requestMicAndPlay();
+                      startPerformance();
                     }}
                   >
                     Começar agora ⏩
@@ -521,7 +553,7 @@ export default function PalcoPage() {
               )}
               {phase === "ready" && countdown === null && starting && (
                 <div className="stage-center-overlay">
-                  <div className="overlay-sub">🎙️ Preparando o microfone...</div>
+                  <div className="overlay-sub">🎶 Preparando...</div>
                 </div>
               )}
               {phase === "ready" && countdown === null && !starting && (
@@ -532,10 +564,10 @@ export default function PalcoPage() {
                     onClick={() => {
                       setArmed(true);
                       setStarting(true);
-                      requestMicAndPlay();
+                      startPerformance();
                     }}
                   >
-                    🎙️ Iniciar a música
+                    ▶️ Iniciar a música
                   </button>
                   <div className="overlay-hint">
                     O navegador bloqueou o início automático — este toque libera o som para o
@@ -548,22 +580,32 @@ export default function PalcoPage() {
                   <div className="grade-big">👏</div>
                   <div className="overlay-sub">
                     Mandou bem, {entry.singer_name}!
-                    <br />A pontuação aparece no telão.
+                    <br />O resultado aparece no telão.
                   </div>
                   <Link href="/entrar" className="btn btn-primary">
                     Voltar para a fila 🎶
                   </Link>
                 </div>
               )}
-              {phase === "finished" && !lyricsOnly && finals && grade && (
+              {phase === "finished" && !lyricsOnly && finals && (
                 <div className="stage-center-overlay">
-                  <div className="grade-big">{grade.grade}</div>
-                  <div className="score-big">{finals.total} / 100</div>
+                  <div className="grade-big">{finals.scored && grade ? grade.grade : "👏"}</div>
+                  {finals.scored && <div className="score-big">{finals.total} / 100</div>}
                   <div className="overlay-sub">
-                    <b>{grade.label}</b>
-                    <br />
-                    {entry.singer_name} cantou &quot;{entry.songs.title}&quot; · maior sequência:{" "}
-                    {finals.best} linhas
+                    {finals.scored && grade ? (
+                      <>
+                        <b>{grade.label}</b>
+                        <br />
+                        {entry.singer_name} cantou &quot;{entry.songs.title}&quot; · maior
+                        sequência: {finals.best} linhas
+                      </>
+                    ) : (
+                      <>
+                        Aplausos para <b>{entry.singer_name}</b>!
+                        <br />
+                        &quot;{entry.songs.title}&quot; — {entry.songs.artist}
+                      </>
+                    )}
                   </div>
                   {nextIn !== null && (
                     <div className="overlay-hint">
@@ -593,17 +635,31 @@ export default function PalcoPage() {
                       : "Aponte a câmera para o QR code e entre na fila! 🎶"}
                   </p>
                 </div>
-                {!armed && (
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-                    <button className="btn btn-primary" onClick={armStage}>
-                      🎬 Ativar palco
-                    </button>
-                    <div className="overlay-hint">
-                      Recomendado no início do evento: um toque libera o som e o microfone,
-                      garantindo que todas as músicas comecem sozinhas.
-                    </div>
-                  </div>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                  {!armed && (
+                    <>
+                      <button className="btn btn-primary" onClick={armStage}>
+                        🎬 Ativar palco
+                      </button>
+                      <div className="overlay-hint">
+                        Recomendado no início do evento: um toque libera o som, garantindo que
+                        todas as músicas comecem sozinhas.
+                      </div>
+                    </>
+                  )}
+                  {!micGranted && (
+                    <>
+                      <button className="btn btn-ghost" onClick={enableScoring}>
+                        🎙️ Ativar pontuação (opcional)
+                      </button>
+                      <div className="overlay-hint">
+                        Usa o microfone do computador para dar nota aos cantores. Se o microfone
+                        do evento é externo (caixa amplificada), pode ignorar — a música toca
+                        normalmente sem isso.
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </>
           )}
