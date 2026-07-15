@@ -241,11 +241,21 @@ export default function PalcoPage() {
       startTsRef.current = performance.now();
     } else {
       // Autoplay pode ser bloqueado se o navegador ainda não teve interação:
-      // nesse caso volta ao estado "ready" e o botão manual assume.
+      // nesse caso volta ao estado "ready" e o botão manual assume. Se o
+      // problema for o arquivo de áudio (não carrega), avisa na tela em vez
+      // de falhar em silêncio.
       audio.play().catch(() => {
         stopEngine();
         setPhase("ready");
         setStarting(false);
+        if (audio.error || audio.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
+          setToast({
+            msg: "Não consegui carregar o áudio desta música 😢 Confira o arquivo no painel.",
+            key: Date.now(),
+          });
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = setTimeout(() => setToast(null), 5000);
+        }
       });
       video?.play().catch(() => {});
     }
