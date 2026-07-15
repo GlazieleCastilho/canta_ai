@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Marquee } from "@/components/Marquee";
 import { api } from "@/lib/client-api";
@@ -99,6 +100,14 @@ export default function EntrarPage() {
   const myIndex = joined ? waiting.findIndex((q) => q.id === joined.id) : -1;
   const performingMe = joined && queue.some((q) => q.id === joined.id && q.status === "performing");
   const gone = joined && myIndex < 0 && !performingMe;
+
+  // chamado ao palco: mostra o "É agora!" e leva sozinho para o /palco
+  const router = useRouter();
+  useEffect(() => {
+    if (!performingMe) return;
+    const t = setTimeout(() => router.push("/palco"), 3000);
+    return () => clearTimeout(t);
+  }, [performingMe, router]);
 
   return (
     <div className="center-page">
@@ -232,6 +241,7 @@ export default function EntrarPage() {
                 <div className="hero" style={{ margin: "10px 0" }}>
                   <h1 className="big-title">É agora! 🌟</h1>
                   <p>{joined.name}, você foi chamado(a) — corre pro palco!</p>
+                  <p style={{ color: "var(--muted)", fontSize: 13 }}>Abrindo o palco... 🎤</p>
                 </div>
               </>
             ) : gone ? (

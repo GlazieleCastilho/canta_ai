@@ -190,6 +190,15 @@ select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(-
   color:#fff; text-shadow:0 0 22px rgba(255,61,127,.55), 0 2px 6px rgba(0,0,0,.6);
   transition:.15s;
 }
+/* preenchimento estilo karaokê: a linha vai ficando dourada conforme é cantada
+   (--fill é atualizado pelo motor a cada tick) */
+.karaoke-fill{
+  background:linear-gradient(90deg, var(--gold) var(--fill,0%), #fff var(--fill,0%));
+  -webkit-background-clip:text; background-clip:text;
+  -webkit-text-fill-color:transparent; color:transparent;
+  text-shadow:none;
+  filter:drop-shadow(0 0 14px rgba(255,197,61,.35)) drop-shadow(0 2px 6px rgba(0,0,0,.6));
+}
 .lyric-next{font-size:16px; color:rgba(245,239,255,.5); font-weight:700;}
 
 .hud{display:flex; align-items:flex-end; justify-content:space-between; gap:20px;}
@@ -265,12 +274,15 @@ select{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(-
 }
 .stage-back:hover{opacity:1; color:var(--text); border-color:rgba(255,197,61,.35);}
 
-/* queue alert - top corner */
+/* queue alert - canto superior direito; some durante a música e
+   desliza para dentro por alguns segundos quando a fila muda */
 .queue-alert{
-  position:absolute; top:16px; right:16px; z-index:6; width:230px;
-  background:rgba(23,14,43,.75); backdrop-filter:blur(8px); border:1px solid rgba(255,197,61,.35);
-  border-radius:14px; padding:12px 14px; transition:.3s;
+  position:absolute; top:16px; right:16px; z-index:6; width:220px;
+  background:rgba(23,14,43,.82); backdrop-filter:blur(8px); border:1px solid var(--line);
+  border-radius:14px; padding:10px 14px;
+  transition:transform .45s ease, opacity .45s ease;
 }
+.queue-alert.hidden{transform:translateX(calc(100% + 24px)); opacity:0; pointer-events:none;}
 .queue-alert.flash{animation:flashpop .6s ease;}
 @keyframes flashpop{0%{box-shadow:0 0 0 0 rgba(255,197,61,.6);}70%{box-shadow:0 0 0 14px rgba(255,197,61,0);}}
 .queue-alert h4{margin:0 0 8px 0; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--gold); display:flex; align-items:center; gap:6px;}

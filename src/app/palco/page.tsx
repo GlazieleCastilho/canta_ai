@@ -29,10 +29,14 @@ export default function PalcoPage() {
   // clique na página — o anfitrião ativa uma vez no início do evento
   const [armed, setArmed] = useState(false);
   const armedRef = useRef(false);
+  // popup dos próximos da fila: fixo só no palco vazio; em cena aparece
+  // alguns segundos quando a fila muda e desliza para fora
+  const [alertVisible, setAlertVisible] = useState(true);
 
   // refs do motor de performance (portado do protótipo)
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fillRef = useRef<HTMLSpanElement>(null);
   const micBarRef = useRef<HTMLElement>(null);
   const lrcRef = useRef<LrcLine[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -95,6 +99,15 @@ export default function PalcoPage() {
     }
   }, []);
 
+  // Se a página já recebeu interação (ex: veio do /entrar via redirect),
+  // o navegador já libera o autoplay — dá pra armar o palco direto.
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && navigator.userActivation?.hasBeenActive) {
+      armedRef.current = true;
+      setArmed(true);
+    }
+  }, []);
+
   useEffect(() => {
     pollQueue();
     const t = setInterval(pollQueue, 3000);
@@ -104,6 +117,19 @@ export default function PalcoPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ---------- visibilidade do popup da fila ---------- */
+
+  useEffect(() => {
+    setAlertVisible(phase === "idle");
+  }, [phase]);
+
+  useEffect(() => {
+    if (queueFlash === 0 || phaseRef.current === "idle") return;
+    setAlertVisible(true);
+    const t = setTimeout(() => setAlertVisible(false), 5000);
+    return () => clearTimeout(t);
+  }, [queueFlash]);
 
   /* ---------- ativação do palco (1 clique no início do evento) ---------- */
 
@@ -207,6 +233,7 @@ export default function PalcoPage() {
         v.currentTime = a.currentTime;
       }
       updateLyrics(a.currentTime);
+      updateFill(a.currentTime);
       if (a.ended) endPerformance();
     }, 120);
 
@@ -233,6 +260,22 @@ export default function PalcoPage() {
         next: idx >= 0 && idx + 1 < lrc.length ? lrc[idx + 1].text : " ",
       });
     }
+  }
+
+  /** Preenchimento amarelo da linha atual, interpolado entre o início dela e a próxima. */
+  function updateFill(t: number) {
+    const el = fillRef.current;
+    if (!el) return;
+    const lrc = lrcRef.current;
+    const i = curLineIdxRef.current;
+    if (i < 0 || i >= lrc.length) {
+      el.style.setProperty("--fill", "0%");
+      return;
+    }
+    const start = lrc[i].time;
+    const end = i + 1 < lrc.length ? lrc[i + 1].time : (audioRef.current?.duration ?? start + 5);
+    const pct = Math.max(0, Math.min(1, (t - start) / Math.max(0.001, end - start)));
+    el.style.setProperty("--fill", `${(pct * 100).toFixed(1)}%`);
   }
 
   function sampleMic() {
@@ -339,7 +382,7 @@ export default function PalcoPage() {
                   {toast.msg}
                 </div>
               )}
-              <QueueAlert waiting={waiting} flash={queueFlash} />
+              <QueueAlert waiting={waiting} flash={queueFlash} visible={alertVisible} />
 
               <div className="stage-content">
                 <div className="now-singing">
@@ -352,7 +395,13 @@ export default function PalcoPage() {
                 <div className="lyrics-zone">
                   <div className="lyric-prev">{lyrics.prev}</div>
                   <div className="lyric-current">
-                    {phase === "ready" ? `${entry.singer_name}, é a sua vez!` : lyrics.current}
+                    {phase === "ready" ? (
+                      `${entry.singer_name}, é a sua vez!`
+                    ) : (
+                      <span className="karaoke-fill" ref={fillRef} key={lyrics.current}>
+                        {lyrics.current}
+                      </span>
+                    )}
                   </div>
                   <div className="lyric-next">{lyrics.next}</div>
                 </div>
@@ -428,7 +477,7 @@ export default function PalcoPage() {
             </>
           ) : (
             <>
-              <QueueAlert waiting={waiting} flash={queueFlash} />
+              <QueueAlert waiting={waiting} flash={queueFlash} visible={alertVisible} />
               <div className="empty-stage">
                 <div className="big">🎙️</div>
                 <div>
@@ -464,9 +513,17 @@ export default function PalcoPage() {
 
 /* ---------- alerta com os próximos da fila (canto superior) ---------- */
 
-function QueueAlert({ waiting, flash }: { waiting: QueueEntry[]; flash: number }) {
+function QueueAlert({
+  waiting,
+  flash,
+  visible,
+}: {
+  waiting: QueueEntry[];
+  flash: number;
+  visible: boolean;
+}) {
   return (
-    <div key={flash} className={`queue-alert ${flash ? "flash" : ""}`}>
+    <div key={flash} className={`queue-alert ${flash ? "flash" : ""} ${visible ? "" : "hidden"}`}>
       <h4>🔔 Próximos na fila</h4>
       {waiting.length ? (
         <ol>
