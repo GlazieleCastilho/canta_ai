@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { QRCodeCanvas } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client-api";
 import { parseLRC, type LrcLine } from "@/karaoke/lrc";
@@ -22,10 +23,30 @@ export default function PalcoPage() {
   const [toast, setToast] = useState<{ msg: string; key: number } | null>(null);
   const [finals, setFinals] = useState<{ total: number; best: number } | null>(null);
   const [queueFlash, setQueueFlash] = useState(0);
+  // contagem regressiva do início automático; null = sem contagem
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [starting, setStarting] = useState(false);
+  // "palco ativado": o navegador só libera áudio automático depois de um
+  // clique na página — o anfitrião ativa uma vez no início do evento
+  const [armed, setArmed] = useState(false);
+  const armedRef = useRef(false);
+  // modo "só letra" (?letra=1): teleprompter do convidado — letra
+  // sincronizada sem som, sem microfone e sem controles do telão
+  const [lyricsOnly, setLyricsOnly] = useState(false);
+  const lyricsOnlyRef = useRef(false);
+  // QR fixo no canto do telão para os convidados entrarem na fila
+  const [entrarUrl, setEntrarUrl] = useState("");
+  // relógio do modo "só letra": marca o instante do início e a letra corre
+  // por tempo decorrido — imune a autoplay bloqueado e aba em segundo plano
+  const startTsRef = useRef(0);
+  // popup dos próximos da fila: fixo só no palco vazio; em cena aparece
+  // alguns segundos quando a fila muda e desliza para fora
+  const [alertVisible, setAlertVisible] = useState(true);
 
   // refs do motor de performance (portado do protótipo)
   const audioRef = useRef<HTMLAudioElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fillRef = useRef<HTMLSpanElement>(null);
   const micBarRef = useRef<HTMLElement>(null);
   const lrcRef = useRef<LrcLine[]>([]);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -74,11 +95,35 @@ export default function PalcoPage() {
       setStreak(0);
       setFinals(null);
       setPhase("ready");
+      setStarting(false);
+      // com o palco ativado a música começa sozinha; sem ativação o
+      // navegador bloquearia o áudio, então fica no botão manual
+      setCountdown(armedRef.current ? 5 : null);
       pickVideo(performing.songs.style);
     } else if (!performing && cur && phaseRef.current === "ready") {
       // admin removeu/encerrou antes de começar
       setEntry(null);
       setPhase("idle");
+      setCountdown(null);
+      setStarting(false);
+    }
+  }, []);
+
+  // Se a página já recebeu interação (ex: veio do /entrar via redirect),
+  // o navegador já libera o autoplay — dá pra armar o palco direto.
+  // No modo "só letra" o áudio fica mudo (autoplay mudo é sempre
+  // permitido), então arma incondicionalmente.
+  useEffect(() => {
+    const only = new URLSearchParams(window.location.search).has("letra");
+    if (only) {
+      lyricsOnlyRef.current = true;
+      setLyricsOnly(true);
+    } else {
+      setEntrarUrl(`${window.location.origin}/entrar`);
+    }
+    if (only || navigator.userActivation?.hasBeenActive) {
+      armedRef.current = true;
+      setArmed(true);
     }
   }, []);
 
@@ -92,9 +137,57 @@ export default function PalcoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /* ---------- visibilidade do popup da fila ---------- */
+
+  useEffect(() => {
+    setAlertVisible(phase === "idle");
+  }, [phase]);
+
+  useEffect(() => {
+    if (queueFlash === 0 || phaseRef.current === "idle") return;
+    setAlertVisible(true);
+    const t = setTimeout(() => setAlertVisible(false), 5000);
+    return () => clearTimeout(t);
+  }, [queueFlash]);
+
+  /* ---------- ativação do palco (1 clique no início do evento) ---------- */
+
+  function armStage() {
+    armedRef.current = true;
+    setArmed(true);
+    // aproveita o clique para já deixar a permissão do microfone concedida
+    navigator.mediaDevices
+      ?.getUserMedia({ audio: true, video: false })
+      .then((stream) => stream.getTracks().forEach((t) => t.stop()))
+      .catch(() => {});
+  }
+
+  /* ---------- contagem regressiva e início automático ---------- */
+
+  useEffect(() => {
+    if (countdown === null) return;
+    if (phaseRef.current !== "ready") {
+      setCountdown(null);
+      return;
+    }
+    if (countdown <= 0) {
+      setCountdown(null);
+      setStarting(true);
+      requestMicAndPlay();
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => (c === null ? null : c - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown]);
+
   /* ---------- sorteio do vídeo de fundo (seção 8 do plano) ---------- */
 
   async function pickVideo(style: string) {
+    if (lyricsOnlyRef.current) {
+      setVideoPath(null); // teleprompter não gasta banda com vídeo
+      return;
+    }
     try {
       const videos = await api<BackgroundVideo[]>("/api/videos");
       const sameStyle = videos.filter((v) => v.style === style);
@@ -108,6 +201,10 @@ export default function PalcoPage() {
   /* ---------- motor de performance (portado do protótipo) ---------- */
 
   function requestMicAndPlay() {
+    if (lyricsOnlyRef.current) {
+      beginPlayback(false); // sem microfone: só acompanha a letra
+      return;
+    }
     navigator.mediaDevices
       .getUserMedia({ audio: true, video: false })
       .then((stream) => {
@@ -123,7 +220,10 @@ export default function PalcoPage() {
         beginPlayback(true);
       })
       .catch(() => {
-        alert("Não foi possível acessar o microfone. A performance vai rodar sem pontuação.");
+        // Sem alert: na TV um modal bloquearia o evento inteiro.
+        setToast({ msg: "Sem microfone — a música segue sem pontuação! 🎶", key: Date.now() });
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setToast(null), 3500);
         beginPlayback(false);
       });
   }
@@ -134,8 +234,19 @@ export default function PalcoPage() {
     if (!audio) return;
     audio.currentTime = 0;
     if (video) video.currentTime = 0;
-    audio.play();
-    video?.play();
+    if (lyricsOnlyRef.current) {
+      // teleprompter: não toca nada — só marca o início do relógio
+      startTsRef.current = performance.now();
+    } else {
+      // Autoplay pode ser bloqueado se o navegador ainda não teve interação:
+      // nesse caso volta ao estado "ready" e o botão manual assume.
+      audio.play().catch(() => {
+        stopEngine();
+        setPhase("ready");
+        setStarting(false);
+      });
+      video?.play().catch(() => {});
+    }
     lineScoresRef.current = [];
     streakRef.current = 0;
     bestStreakRef.current = 0;
@@ -145,16 +256,22 @@ export default function PalcoPage() {
     setStreak(0);
     setPhase("playing");
 
-    // vídeo segue o áudio (o áudio é o relógio-mestre) — lógica do protótipo
+    // vídeo segue o áudio (o áudio é o relógio-mestre) — lógica do protótipo;
+    // no modo "só letra" o relógio é o tempo decorrido desde o início
     syncTimerRef.current = setInterval(() => {
       const a = audioRef.current,
         v = videoRef.current;
       if (!a) return;
-      if (v && Math.abs(v.currentTime - a.currentTime) > 0.35) {
+      const only = lyricsOnlyRef.current;
+      const t = only ? (performance.now() - startTsRef.current) / 1000 : a.currentTime;
+      if (!only && v && Math.abs(v.currentTime - a.currentTime) > 0.35) {
         v.currentTime = a.currentTime;
       }
-      updateLyrics(a.currentTime);
-      if (a.ended) endPerformance();
+      updateLyrics(t);
+      updateFill(t);
+      const lastLine = lrcRef.current[lrcRef.current.length - 1];
+      const acabou = only ? t >= (a.duration || (lastLine?.time ?? 0) + 6) : a.ended;
+      if (acabou) endPerformance();
     }, 120);
 
     if (micReady) {
@@ -180,6 +297,22 @@ export default function PalcoPage() {
         next: idx >= 0 && idx + 1 < lrc.length ? lrc[idx + 1].text : " ",
       });
     }
+  }
+
+  /** Preenchimento amarelo da linha atual, interpolado entre o início dela e a próxima. */
+  function updateFill(t: number) {
+    const el = fillRef.current;
+    if (!el) return;
+    const lrc = lrcRef.current;
+    const i = curLineIdxRef.current;
+    if (i < 0 || i >= lrc.length) {
+      el.style.setProperty("--fill", "0%");
+      return;
+    }
+    const start = lrc[i].time;
+    const end = i + 1 < lrc.length ? lrc[i + 1].time : (audioRef.current?.duration ?? start + 5);
+    const pct = Math.max(0, Math.min(1, (t - start) / Math.max(0.001, end - start)));
+    el.style.setProperty("--fill", `${(pct * 100).toFixed(1)}%`);
   }
 
   function sampleMic() {
@@ -245,7 +378,10 @@ export default function PalcoPage() {
     setFinals({ total, best: bestStreakRef.current });
     setPhase("finished");
     const cur = entryRef.current;
-    if (cur) api(`/api/queue/${cur.id}/done`, { method: "POST" }).catch(() => {});
+    // quem encerra a apresentação na fila é o telão — o teleprompter não
+    if (cur && !lyricsOnlyRef.current) {
+      api(`/api/queue/${cur.id}/done`, { method: "POST" }).catch(() => {});
+    }
   }
 
   function closeModal() {
@@ -264,9 +400,17 @@ export default function PalcoPage() {
       <div className="chase-lights" />
       <main style={{ paddingTop: 16 }}>
         <div className="stage-wrap">
-          <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
-            ←
-          </Link>
+          {!lyricsOnly && (
+            <Link href="/admin" className="stage-back" aria-label="Voltar ao painel" title="Voltar ao painel">
+              ←
+            </Link>
+          )}
+          {!lyricsOnly && entrarUrl && (
+            <div className="stage-qr">
+              <QRCodeCanvas value={entrarUrl} size={88} marginSize={2} />
+              <span>📱 Entre na fila</span>
+            </div>
+          )}
           {entry && entry.songs ? (
             <>
               {videoPath && (
@@ -286,7 +430,7 @@ export default function PalcoPage() {
                   {toast.msg}
                 </div>
               )}
-              <QueueAlert waiting={waiting} flash={queueFlash} />
+              <QueueAlert waiting={waiting} flash={queueFlash} visible={alertVisible} />
 
               <div className="stage-content">
                 <div className="now-singing">
@@ -299,38 +443,106 @@ export default function PalcoPage() {
                 <div className="lyrics-zone">
                   <div className="lyric-prev">{lyrics.prev}</div>
                   <div className="lyric-current">
-                    {phase === "ready" ? `${entry.singer_name}, é a sua vez!` : lyrics.current}
+                    {phase === "ready" ? (
+                      `${entry.singer_name}, é a sua vez!`
+                    ) : (
+                      <span className="karaoke-fill" ref={fillRef} key={lyrics.current}>
+                        {lyrics.current}
+                      </span>
+                    )}
                   </div>
                   <div className="lyric-next">{lyrics.next}</div>
                 </div>
 
-                <div className="hud">
-                  <div className="score-box">
-                    <div className="label">Pontuação</div>
-                    <div className="val">{score}</div>
-                    <div className="streak">Sequência: {streak}</div>
-                    <div className="mic-meter">
-                      <i ref={micBarRef as React.RefObject<HTMLElement & HTMLLIElement>} />
-                    </div>
+                {phase === "playing" && !lyricsOnly && (
+                  <div className="stage-bottom-controls">
+                    <button className="btn btn-danger" onClick={endPerformance}>
+                      Encerrar performance
+                    </button>
                   </div>
-                  <div className="stage-controls">
-                    {phase === "ready" && (
-                      <button className="btn btn-primary" onClick={requestMicAndPlay}>
-                        🎙️ Pedir microfone e iniciar
-                      </button>
-                    )}
-                    {phase === "playing" && (
-                      <button className="btn btn-danger" onClick={endPerformance}>
-                        Encerrar performance
-                      </button>
-                    )}
+                )}
+                {phase === "playing" && lyricsOnly && (
+                  <div className="stage-bottom-controls">
+                    <div className="overlay-hint">O som toca no telão — acompanhe a letra por aqui 📺</div>
                   </div>
-                </div>
+                )}
               </div>
+
+              {phase === "ready" && countdown !== null && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">{entry.singer_name}, é a sua vez!</div>
+                  <div className="countdown-num" key={countdown}>
+                    {countdown}
+                  </div>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setCountdown(null);
+                      setStarting(true);
+                      requestMicAndPlay();
+                    }}
+                  >
+                    Começar agora ⏩
+                  </button>
+                </div>
+              )}
+              {phase === "ready" && countdown === null && starting && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">🎙️ Preparando o microfone...</div>
+                </div>
+              )}
+              {phase === "ready" && countdown === null && !starting && (
+                <div className="stage-center-overlay">
+                  <div className="overlay-sub">{entry.singer_name}, é a sua vez!</div>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      armedRef.current = true;
+                      setArmed(true);
+                      setStarting(true);
+                      requestMicAndPlay();
+                    }}
+                  >
+                    🎙️ Iniciar a música
+                  </button>
+                  {!armed && (
+                    <div className="overlay-hint">
+                      Este primeiro clique ativa o palco — as próximas músicas começam sozinhas.
+                    </div>
+                  )}
+                </div>
+              )}
+              {phase === "finished" && lyricsOnly && (
+                <div className="stage-center-overlay">
+                  <div className="grade-big">👏</div>
+                  <div className="overlay-sub">
+                    Mandou bem, {entry.singer_name}!
+                    <br />A pontuação aparece no telão.
+                  </div>
+                  <Link href="/entrar" className="btn btn-primary">
+                    Voltar para a fila 🎶
+                  </Link>
+                </div>
+              )}
+              {phase === "finished" && !lyricsOnly && finals && grade && (
+                <div className="stage-center-overlay">
+                  <div className="grade-big">{grade.grade}</div>
+                  <div className="score-big">{finals.total} / 100</div>
+                  <div className="overlay-sub">
+                    <b>{grade.label}</b>
+                    <br />
+                    {entry.singer_name} cantou &quot;{entry.songs.title}&quot; · maior sequência:{" "}
+                    {finals.best} linhas
+                  </div>
+                  <button className="btn btn-primary" onClick={closeModal}>
+                    Chamar o próximo cantor
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <>
-              <QueueAlert waiting={waiting} flash={queueFlash} />
+              <QueueAlert waiting={waiting} flash={queueFlash} visible={alertVisible} />
               <div className="empty-stage">
                 <div className="big">🎙️</div>
                 <div>
@@ -343,40 +555,40 @@ export default function PalcoPage() {
                       : "Aponte a câmera para o QR code e entre na fila! 🎶"}
                   </p>
                 </div>
+                {!armed && (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <button className="btn btn-primary" onClick={armStage}>
+                      🎬 Ativar palco
+                    </button>
+                    <div className="overlay-hint">
+                      Clique uma vez no início do evento: libera o som e o microfone para as
+                      apresentações começarem sozinhas.
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
         </div>
       </main>
       <div className="chase-lights pink" />
-
-      {finals && grade && entry && entry.songs && (
-        <div className="modal-bg">
-          <div className="modal">
-            <div className="grade">{grade.grade}</div>
-            <div className="num">{finals.total} / 100</div>
-            <p>
-              <b>{grade.label}</b>
-              <br />
-              {entry.singer_name} cantou &quot;{entry.songs.title}&quot;
-              <br />
-              Maior sequência: {finals.best} linhas
-            </p>
-            <button className="btn btn-primary btn-block" onClick={closeModal}>
-              Chamar o próximo cantor
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 /* ---------- alerta com os próximos da fila (canto superior) ---------- */
 
-function QueueAlert({ waiting, flash }: { waiting: QueueEntry[]; flash: number }) {
+function QueueAlert({
+  waiting,
+  flash,
+  visible,
+}: {
+  waiting: QueueEntry[];
+  flash: number;
+  visible: boolean;
+}) {
   return (
-    <div key={flash} className={`queue-alert ${flash ? "flash" : ""}`}>
+    <div key={flash} className={`queue-alert ${flash ? "flash" : ""} ${visible ? "" : "hidden"}`}>
       <h4>🔔 Próximos na fila</h4>
       {waiting.length ? (
         <ol>
