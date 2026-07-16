@@ -34,6 +34,13 @@ export async function DELETE(
   const db = supabaseAdmin();
 
   const { data: song } = await db.from("songs").select("mp3_path").eq("id", id).single();
+
+  // Remove antes o histórico da fila que referencia a música (inclusive
+  // apresentações encerradas) — sem isso a FK queue.song_id bloqueia a
+  // exclusão de qualquer música que já foi cantada.
+  const { error: queueError } = await db.from("queue").delete().eq("song_id", id);
+  if (queueError) return NextResponse.json({ error: queueError.message }, { status: 500 });
+
   const { error } = await db.from("songs").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (song?.mp3_path) await db.storage.from("midia").remove([song.mp3_path]);
